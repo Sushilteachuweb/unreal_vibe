@@ -9,7 +9,6 @@ import 'widgets/my_profile_card.dart';
 import 'widgets/settings_card.dart';
 import 'widgets/achievements_card.dart';
 import 'widgets/additional_options_card.dart';
-import 'widgets/dark_mode_switch.dart';
 import 'widgets/footer_links.dart';
 
 class ProfileScreen extends StatelessWidget {
@@ -46,8 +45,6 @@ class ProfileScreen extends StatelessWidget {
                   const AchievementsCard(),
                   const SizedBox(height: 24),
                   const AdditionalOptionsCard(),
-                  const SizedBox(height: 24),
-                  const DarkModeSwitch(),
                   const SizedBox(height: 32),
                   const FooterLinks(),
                   const SizedBox(height: 20),
