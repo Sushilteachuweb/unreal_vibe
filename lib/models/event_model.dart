@@ -71,6 +71,8 @@ class Event {
         imageUrl: 'assets/images/house_party.jpg',
         tags: ['HOUSE PARTY', 'AGE: 22+'],
         isTrending: true,
+        ageRestriction: 'For age 23 - 34 years',
+        whatsIncluded: 'Price Includes 1 Beverage, Nibbles, Experience + BYOB',
       ),
       Event(
         id: '2',

@@ -11,7 +11,7 @@ class ProfileHeader extends StatelessWidget {
       builder: (context, userProvider, child) {
         final user = userProvider.user;
         final userName = user?.name ?? 'Guest User';
-        final userCity = user?.city.toUpperCase() ?? 'UNKNOWN';
+        final userCity = user?.city?.toUpperCase() ?? 'UNKNOWN';
         
         return Center(
           child: Column(
@@ -35,14 +35,19 @@ class ProfileHeader extends StatelessWidget {
                 child: CircleAvatar(
                   radius: 55,
                   backgroundColor: Colors.transparent,
-                  child: Text(
-                    _getInitials(userName),
-                    style: const TextStyle(
-                      fontSize: 40,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
+                  backgroundImage: user?.profilePhotoUrl != null
+                      ? NetworkImage('http://api.unrealvibe.com${user!.profilePhotoUrl}')
+                      : null,
+                  child: user?.profilePhotoUrl == null
+                      ? Text(
+                          _getInitials(userName),
+                          style: const TextStyle(
+                            fontSize: 40,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        )
+                      : null,
                 ),
               ),
               const SizedBox(height: 16),

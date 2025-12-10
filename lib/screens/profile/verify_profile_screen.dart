@@ -55,7 +55,7 @@ class VerifyProfileScreen extends StatelessWidget {
               const SizedBox(height: 16),
               _buildInstructionItem('1. Take a photo of your identity documents', context),
               const SizedBox(height: 12),
-              _buildInstructionItem('2. Take a photo of your face', context),
+              _buildInstructionItem('2. Upload your profile photo', context),
               const Spacer(),
               _buildVerifyButton(context),
               const SizedBox(height: 40),
@@ -102,7 +102,7 @@ class VerifyProfileScreen extends StatelessWidget {
           },
           child: Center(
             child: Text(
-              'Verify Profile',
+              'Complete Profile',
               style: TextStyle(
                 color: Colors.white,
                 fontSize: ResponsiveHelper.getResponsiveFontSize(context, 18),

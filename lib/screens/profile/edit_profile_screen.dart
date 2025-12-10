@@ -1,0 +1,480 @@
+import 'dart:io';
+import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:provider/provider.dart';
+import '../../providers/user_provider.dart';
+
+class EditProfileScreen extends StatefulWidget {
+  const EditProfileScreen({Key? key}) : super(key: key);
+
+  @override
+  State<EditProfileScreen> createState() => _EditProfileScreenState();
+}
+
+class _EditProfileScreenState extends State<EditProfileScreen> {
+  final _formKey = GlobalKey<FormState>();
+  final ImagePicker _picker = ImagePicker();
+  
+  late TextEditingController _nameController;
+  late TextEditingController _emailController;
+  late TextEditingController _cityController;
+  String _selectedGender = 'Male';
+  
+  File? _profilePhoto;
+  File? _aadhaar;
+  File? _pan;
+  File? _drivingLicense;
+  
+  bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final user = Provider.of<UserProvider>(context, listen: false).user;
+    _nameController = TextEditingController(text: user?.name ?? '');
+    _emailController = TextEditingController(text: user?.email ?? '');
+    _cityController = TextEditingController(text: user?.city ?? '');
+    _selectedGender = user?.gender ?? 'Male';
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _emailController.dispose();
+    _cityController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pickImage(ImageSource source, String type) async {
+    try {
+      final XFile? image = await _picker.pickImage(
+        source: source,
+        maxWidth: 1024,
+        maxHeight: 1024,
+        imageQuality: 60,
+      );
+      
+      if (image != null) {
+        final file = File(image.path);
+        final fileSize = await file.length();
+        final fileSizeMB = fileSize / (1024 * 1024);
+        
+        // Check if file is too large (more than 2MB)
+        if (fileSizeMB > 2) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Image is too large (${fileSizeMB.toStringAsFixed(1)}MB). Please use a smaller image.'),
+                backgroundColor: Colors.orange,
+                duration: const Duration(seconds: 3),
+              ),
+            );
+          }
+          return;
+        }
+        
+        setState(() {
+          switch (type) {
+            case 'profile':
+              _profilePhoto = file;
+              break;
+            case 'aadhaar':
+              _aadhaar = file;
+              break;
+            case 'pan':
+              _pan = file;
+              break;
+            case 'drivingLicense':
+              _drivingLicense = file;
+              break;
+          }
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  void _showImageSourceDialog(String type, String title) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF1A1A1A),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (BuildContext context) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                ListTile(
+                  leading: const Icon(Icons.camera_alt, color: Color(0xFFE94B8B)),
+                  title: const Text('Camera', style: TextStyle(color: Colors.white)),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _pickImage(ImageSource.camera, type);
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.photo_library, color: Color(0xFFE94B8B)),
+                  title: const Text('Gallery', style: TextStyle(color: Colors.white)),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _pickImage(ImageSource.gallery, type);
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _saveProfile() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _isLoading = true);
+
+    try {
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
+      
+      final result = await userProvider.completeProfile(
+        name: _nameController.text.trim(),
+        email: _emailController.text.trim(),
+        city: _cityController.text.trim(),
+        gender: _selectedGender,
+        profilePhoto: _profilePhoto,
+        aadhaar: _aadhaar,
+        pan: _pan,
+        drivingLicense: _drivingLicense,
+      );
+
+      if (!mounted) return;
+
+      setState(() => _isLoading = false);
+
+      if (result['success']) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result['message'] ?? 'Profile updated successfully'),
+            backgroundColor: const Color(0xFF10B981),
+          ),
+        );
+        Navigator.pop(context);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result['message'] ?? 'Failed to update profile'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      
+      setState(() => _isLoading = false);
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFF0A0A0A),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF0A0A0A),
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: const Text(
+          'Edit Profile',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+        ),
+      ),
+      body: Form(
+        key: _formKey,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildProfilePhotoSection(),
+              const SizedBox(height: 32),
+              _buildTextField('Name', _nameController, Icons.person),
+              const SizedBox(height: 16),
+              _buildTextField('Email', _emailController, Icons.email, keyboardType: TextInputType.emailAddress),
+              const SizedBox(height: 16),
+              _buildTextField('City', _cityController, Icons.location_city),
+              const SizedBox(height: 16),
+              _buildGenderSelector(),
+              const SizedBox(height: 32),
+              _buildDocumentsSection(),
+              const SizedBox(height: 32),
+              _buildSaveButton(),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProfilePhotoSection() {
+    final user = Provider.of<UserProvider>(context).user;
+    
+    return Center(
+      child: Column(
+        children: [
+          GestureDetector(
+            onTap: () => _showImageSourceDialog('profile', 'Update Profile Photo'),
+            child: Container(
+              width: 120,
+              height: 120,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: const Color(0xFFE94B8B), width: 3),
+              ),
+              child: ClipOval(
+                child: _profilePhoto != null
+                    ? Image.file(_profilePhoto!, fit: BoxFit.cover)
+                    : (user?.profilePhotoUrl != null
+                        ? Image.network(
+                            'http://api.unrealvibe.com${user!.profilePhotoUrl}',
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) => _buildPlaceholder(),
+                          )
+                        : _buildPlaceholder()),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          TextButton.icon(
+            onPressed: () => _showImageSourceDialog('profile', 'Update Profile Photo'),
+            icon: const Icon(Icons.camera_alt, color: Color(0xFFE94B8B)),
+            label: const Text(
+              'Change Photo',
+              style: TextStyle(color: Color(0xFFE94B8B), fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPlaceholder() {
+    return Container(
+      color: const Color(0xFF2A2A2A),
+      child: const Icon(Icons.person, size: 60, color: Color(0xFF6B7280)),
+    );
+  }
+
+  Widget _buildTextField(String label, TextEditingController controller, IconData icon, {TextInputType? keyboardType}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 8),
+        TextFormField(
+          controller: controller,
+          keyboardType: keyboardType,
+          style: const TextStyle(color: Colors.white),
+          decoration: InputDecoration(
+            prefixIcon: Icon(icon, color: const Color(0xFF6B7280)),
+            filled: true,
+            fillColor: const Color(0xFF1A1A1A),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFF2A2A2A)),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFF2A2A2A)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFFE94B8B)),
+            ),
+          ),
+          validator: (value) {
+            if (value == null || value.isEmpty) {
+              return 'Please enter $label';
+            }
+            return null;
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildGenderSelector() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Gender',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(child: _buildGenderOption('Male')),
+            const SizedBox(width: 12),
+            Expanded(child: _buildGenderOption('Female')),
+            const SizedBox(width: 12),
+            Expanded(child: _buildGenderOption('Other')),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildGenderOption(String gender) {
+    final isSelected = _selectedGender == gender;
+    return GestureDetector(
+      onTap: () => setState(() => _selectedGender = gender),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFFE94B8B) : const Color(0xFF1A1A1A),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isSelected ? const Color(0xFFE94B8B) : const Color(0xFF2A2A2A),
+          ),
+        ),
+        child: Center(
+          child: Text(
+            gender,
+            style: TextStyle(
+              color: isSelected ? Colors.white : const Color(0xFF9CA3AF),
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDocumentsSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Documents (Optional)',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 16),
+        _buildDocumentUpload('Aadhaar', _aadhaar, 'aadhaar'),
+        const SizedBox(height: 12),
+        _buildDocumentUpload('PAN Card', _pan, 'pan'),
+        const SizedBox(height: 12),
+        _buildDocumentUpload('Driving License', _drivingLicense, 'drivingLicense'),
+      ],
+    );
+  }
+
+  Widget _buildDocumentUpload(String label, File? file, String type) {
+    return GestureDetector(
+      onTap: () => _showImageSourceDialog(type, 'Upload $label'),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: const Color(0xFF1A1A1A),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: file != null ? const Color(0xFFE94B8B) : const Color(0xFF2A2A2A),
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              file != null ? Icons.check_circle : Icons.upload_file,
+              color: file != null ? const Color(0xFFE94B8B) : const Color(0xFF6B7280),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                file != null ? '$label uploaded' : 'Upload $label',
+                style: TextStyle(
+                  color: file != null ? Colors.white : const Color(0xFF9CA3AF),
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+            Icon(
+              Icons.arrow_forward_ios,
+              size: 16,
+              color: const Color(0xFF6B7280),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSaveButton() {
+    return SizedBox(
+      width: double.infinity,
+      height: 56,
+      child: ElevatedButton(
+        onPressed: _isLoading ? null : _saveProfile,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFFE94B8B),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+        ),
+        child: _isLoading
+            ? const CircularProgressIndicator(color: Colors.white)
+            : const Text(
+                'Save Changes',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+      ),
+    );
+  }
+}

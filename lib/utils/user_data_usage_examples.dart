@@ -137,7 +137,7 @@ class ExampleConditionalContent extends StatelessWidget {
         }
         
         // Show different content based on user's city
-        if (user.city.toLowerCase() == 'noida') {
+        if (user.city?.toLowerCase() == 'noida') {
           return const Text('Welcome, Noida resident!');
         } else {
           return Text('Welcome from ${user.city}!');

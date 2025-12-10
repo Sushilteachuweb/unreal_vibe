@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../providers/user_provider.dart';
+import '../edit_profile_screen.dart';
 
 class SettingsCard extends StatelessWidget {
   const SettingsCard({Key? key}) : super(key: key);
@@ -16,7 +17,15 @@ class SettingsCard extends StatelessWidget {
       ),
       child: Column(
         children: [
-          _buildSettingsItem(context, Icons.edit, 'Edit Profile', () {}),
+          _buildSettingsItem(
+            context,
+            Icons.edit,
+            'Edit Profile',
+            () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const EditProfileScreen()),
+            ),
+          ),
           _buildDivider(),
           _buildSettingsItem(context, Icons.lock, 'Privacy', () {}),
           _buildDivider(),
@@ -41,34 +50,81 @@ class SettingsCard extends StatelessWidget {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: const Color(0xFF1A1A1A),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
         title: const Text(
           'Logout',
-          style: TextStyle(color: Colors.white),
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
         ),
         content: const Text(
           'Are you sure you want to logout?',
-          style: TextStyle(color: Colors.white70),
+          style: TextStyle(color: Color(0xFF9CA3AF)),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(color: Color(0xFF9CA3AF)),
+            ),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Logout'),
+            child: const Text(
+              'Logout',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
           ),
         ],
       ),
     );
 
     if (confirmed == true && context.mounted) {
-      final userProvider = Provider.of<UserProvider>(context, listen: false);
-      await userProvider.logoutUser();
+      // Show loading dialog
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: CircularProgressIndicator(
+            color: Color(0xFFE94B8B),
+          ),
+        ),
+      );
 
-      if (context.mounted) {
-        Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
+      try {
+        final userProvider = Provider.of<UserProvider>(context, listen: false);
+        await userProvider.logoutUser();
+
+        if (context.mounted) {
+          Navigator.of(context).pop(); // Close loading dialog
+          
+          // Show success message
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Logged out successfully'),
+              backgroundColor: Color(0xFF10B981),
+              duration: Duration(seconds: 2),
+            ),
+          );
+
+          // Navigate to login screen
+          Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
+        }
+      } catch (e) {
+        if (context.mounted) {
+          Navigator.of(context).pop(); // Close loading dialog
+          
+          // Show error message
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Logout failed: $e'),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
       }
     }
   }

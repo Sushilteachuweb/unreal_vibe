@@ -23,6 +23,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
 
   String? _selectedGender;
   bool _agreeToTerms = false;
+  bool _isLoading = false;
 
   @override
   Widget build(BuildContext context) {
@@ -37,7 +38,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
       body: Container(
         decoration: const BoxDecoration(
           image: DecorationImage(
-            image: AssetImage('assets/images/Splash Screen.png'),
+            image: AssetImage('assets/images/SplashScreen.png'),
             fit: BoxFit.cover,
           ),
         ),
@@ -130,7 +131,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                             const SizedBox(height: 25),
 
                             Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                              crossAxisAlignment: CrossAxisAlignment.center,
                               children: [
                                 SizedBox(
                                   width: 24,
@@ -172,7 +173,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                             SizedBox(
                               width: double.infinity,
                               child: ElevatedButton(
-                                onPressed: _agreeToTerms ? _createAccount : null,
+                                onPressed: (_agreeToTerms && !_isLoading) ? _createAccount : null,
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: const Color(0xFFE91E63),
                                   disabledBackgroundColor:
@@ -183,14 +184,23 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                                   ),
                                   elevation: 0,
                                 ),
-                                child: const Text(
-                                  'Submit',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.white,
-                                  ),
-                                ),
+                                child: _isLoading
+                                    ? const SizedBox(
+                                        height: 20,
+                                        width: 20,
+                                        child: CircularProgressIndicator(
+                                          color: Colors.white,
+                                          strokeWidth: 2,
+                                        ),
+                                      )
+                                    : const Text(
+                                        'Submit',
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w600,
+                                          color: Colors.white,
+                                        ),
+                                      ),
                               ),
                             ),
                           ],
@@ -378,53 +388,50 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
       return;
     }
 
-    // Show loading indicator
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => const Center(
-        child: CircularProgressIndicator(color: Colors.white),
-      ),
-    );
-
-    // Create user object
-    final user = User(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      name: _nameController.text.trim(),
-      email: _emailController.text.trim(),
-      phoneNumber: widget.phoneNumber,
-      city: _cityController.text.trim(),
-      gender: _selectedGender!,
-    );
+    setState(() => _isLoading = true);
 
     try {
       // Get UserProvider
       final userProvider = context.read<UserProvider>();
       
-      // Save user data
-      await userProvider.loginUser(user);
-
-      // Close loading dialog
-      if (!mounted) return;
-      Navigator.pop(context);
-
-      // Navigate to main screen
-      if (!mounted) return;
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const MainNavigation()),
+      // Call Create Profile API
+      final result = await userProvider.createProfile(
+        name: _nameController.text.trim(),
+        email: _emailController.text.trim(),
+        city: _cityController.text.trim(),
+        gender: _selectedGender!,
       );
-    } catch (e, stackTrace) {
-      // Log the actual error for debugging
-      debugPrint('❌ Error creating account: $e');
-      debugPrint('Stack trace: $stackTrace');
-      
-      // Close loading dialog
-      if (mounted) Navigator.pop(context);
-      
-      // Show error message
+
       if (!mounted) return;
-      _showError('Error: ${e.toString()}');
+
+      if (result['success']) {
+        // Show success message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result['message'] ?? 'Profile created successfully'),
+            backgroundColor: const Color(0xFF10B981),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+
+        // Navigate to main screen
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const MainNavigation()),
+        );
+      } else {
+        // Show error message
+        _showError(result['message'] ?? 'Failed to create profile');
+      }
+    } catch (e) {
+      debugPrint('❌ Error creating account: $e');
+      
+      if (!mounted) return;
+      _showError('Something went wrong. Please try again.');
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 

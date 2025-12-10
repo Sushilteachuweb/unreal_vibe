@@ -40,10 +40,8 @@ class VerificationCard extends StatelessWidget {
           _buildProgressBar(),
           const SizedBox(height: 16),
           _buildVerificationItem(Icons.phone, 'Phone Verified', true),
-          _buildVerificationItem(Icons.email, 'Email Verified', true),
           _buildVerificationItem(Icons.credit_card, 'ID Upload', false),
-          _buildVerificationItem(Icons.camera_alt, 'Selfie Verification', false),
-          _buildVerificationItem(Icons.link, 'Link Social Media', false),
+          _buildVerificationItem(Icons.account_circle, 'Profile Photo Update', false),
           const SizedBox(height: 16),
           _buildCompleteVerificationButton(),
         ],
@@ -59,7 +57,7 @@ class VerificationCard extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             const Text(
-              'Level 2',
+              'Level 1',
               style: TextStyle(
                 color: Color(0xFF6366F1),
                 fontSize: 14,
@@ -67,7 +65,7 @@ class VerificationCard extends StatelessWidget {
               ),
             ),
             const Text(
-              '60% Complete',
+              '33% Complete',
               style: TextStyle(
                 color: Color(0xFF9CA3AF),
                 fontSize: 12,
@@ -84,7 +82,7 @@ class VerificationCard extends StatelessWidget {
           ),
           child: FractionallySizedBox(
             alignment: Alignment.centerLeft,
-            widthFactor: 0.6,
+            widthFactor: 0.33,
             child: Container(
               decoration: BoxDecoration(
                 gradient: const LinearGradient(

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'otp_screen.dart';
 import '../../utils/responsive_helper.dart';
+import '../../providers/user_provider.dart';
 
 class NumberScreen extends StatefulWidget {
   const NumberScreen({Key? key}) : super(key: key);
@@ -11,6 +13,7 @@ class NumberScreen extends StatefulWidget {
 
 class _NumberScreenState extends State<NumberScreen> {
   bool _isChecked = false;
+  bool _isLoading = false;
   final TextEditingController _phoneController = TextEditingController();
 
   @override
@@ -23,7 +26,7 @@ class _NumberScreenState extends State<NumberScreen> {
       body: Container(
         decoration: const BoxDecoration(
           image: DecorationImage(
-            image: AssetImage('assets/images/Splash Screen.png'),
+            image: AssetImage('assets/images/SplashScreen.png'),
             fit: BoxFit.cover,
           ),
         ),
@@ -195,32 +198,7 @@ class _NumberScreenState extends State<NumberScreen> {
                         SizedBox(
                           width: double.infinity,
                           child: ElevatedButton(
-                            onPressed: _isChecked
-                                ? () {
-                                    if (_phoneController.text.length == 10) {
-                                      String otp = (1000 + (9000 * (DateTime.now().millisecondsSinceEpoch % 10000) / 10000).floor()).toString();
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (context) => OtpScreen(
-                                            phoneNumber: _phoneController.text,
-                                            correctOtp: otp,
-                                          ),
-                                        ),
-                                      );
-                                    } else {
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        SnackBar(
-                                          content: Text(
-                                            'Please enter a valid 10-digit mobile number',
-                                          ),
-                                          backgroundColor: Colors.red,
-                                          duration: Duration(seconds: 2),
-                                        ),
-                                      );
-                                    }
-                                  }
-                                : null,
+                            onPressed: (_isChecked && !_isLoading) ? _sendOtp : null,
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFFCC3263),
                               disabledBackgroundColor: Colors.grey.withOpacity(0.3),
@@ -230,14 +208,23 @@ class _NumberScreenState extends State<NumberScreen> {
                               ),
                               elevation: 0,
                             ),
-                            child: Text(
-                              'Send OTP',
-                              style: TextStyle(
-                                fontSize: ResponsiveHelper.getResponsiveFontSize(context, 16),
-                                fontWeight: FontWeight.w600,
-                                color: Colors.white,
-                              ),
-                            ),
+                            child: _isLoading
+                                ? const SizedBox(
+                                    height: 20,
+                                    width: 20,
+                                    child: CircularProgressIndicator(
+                                      color: Colors.white,
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : Text(
+                                    'Send OTP',
+                                    style: TextStyle(
+                                      fontSize: ResponsiveHelper.getResponsiveFontSize(context, 16),
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.white,
+                                    ),
+                                  ),
                           ),
                         ),
                       ],
@@ -250,6 +237,74 @@ class _NumberScreenState extends State<NumberScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _sendOtp() async {
+    final phoneNumber = _phoneController.text.trim();
+
+    // Validate phone number
+    if (phoneNumber.isEmpty || phoneNumber.length != 10) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter a valid 10-digit mobile number'),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
+      final result = await userProvider.requestOtp(phoneNumber);
+
+      if (!mounted) return;
+
+      if (result['success']) {
+        // Show success message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result['message'] ?? 'OTP sent successfully'),
+            backgroundColor: const Color(0xFF10B981),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+
+        // Navigate to OTP screen
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => OtpScreen(
+              phoneNumber: phoneNumber,
+            ),
+          ),
+        );
+      } else {
+        // Show error message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result['message'] ?? 'Failed to send OTP'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Something went wrong. Please try again.'),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 2),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
   }
 
   @override

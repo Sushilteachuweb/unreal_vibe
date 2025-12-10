@@ -1,16 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 import 'create_account_screen.dart';
 import '../../utils/responsive_helper.dart';
+import '../../providers/user_provider.dart';
+import '../../navigation/main_navigation.dart';
 
 class OtpScreen extends StatefulWidget {
   final String phoneNumber;
-  final String correctOtp;
 
   const OtpScreen({
     Key? key,
     required this.phoneNumber,
-    required this.correctOtp,
   }) : super(key: key);
 
   @override
@@ -25,59 +26,12 @@ class _OtpScreenState extends State<OtpScreen> {
   final List<FocusNode> _focusNodes = List.generate(4, (index) => FocusNode());
   String _timerText = '00:30';
   bool _isResendEnabled = false;
+  bool _isLoading = false;
 
   @override
   void initState() {
     super.initState();
     _startTimer();
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _showOtpPopup();
-    });
-  }
-
-  void _showOtpPopup() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext context) {
-        Future.delayed(const Duration(seconds: 4), () {
-          if (Navigator.canPop(context)) {
-            Navigator.of(context).pop();
-          }
-        });
-
-        return Dialog(
-          backgroundColor: Colors.transparent,
-          child: Container(
-            padding: const EdgeInsets.all(30),
-            decoration: BoxDecoration(
-              color: Color(0xFFAB3965),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text(
-                  'Your OTP',
-                  style: TextStyle(color: Colors.white70, fontSize: 16),
-                ),
-                const SizedBox(height: 20),
-                Text(
-                  widget.correctOtp,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 48,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 12,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
   }
 
   void _startTimer() {
@@ -99,25 +53,58 @@ class _OtpScreenState extends State<OtpScreen> {
     }
   }
 
-  void _resendOTP() {
-    if (_isResendEnabled) {
-      setState(() {
-        _isResendEnabled = false;
-        for (var controller in _otpControllers) {
-          controller.clear();
-        }
-      });
-      _startTimer();
-      _showOtpPopup();
+  Future<void> _resendOTP() async {
+    if (!_isResendEnabled) return;
 
+    setState(() => _isLoading = true);
+
+    try {
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
+      final result = await userProvider.requestOtp(widget.phoneNumber);
+
+      if (!mounted) return;
+
+      if (result['success']) {
+        setState(() {
+          _isResendEnabled = false;
+          for (var controller in _otpControllers) {
+            controller.clear();
+          }
+        });
+        _startTimer();
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result['message'] ?? 'OTP resent successfully'),
+            backgroundColor: const Color(0xFF10B981),
+            duration: const Duration(seconds: 2),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result['message'] ?? 'Failed to resend OTP'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 2),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('OTP resent successfully'),
-          backgroundColor: Color(0xFFE91E63),
-          duration: const Duration(seconds: 2),
+        const SnackBar(
+          content: Text('Something went wrong. Please try again.'),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 2),
           behavior: SnackBarBehavior.floating,
         ),
       );
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -132,7 +119,7 @@ class _OtpScreenState extends State<OtpScreen> {
       body: Container(
         decoration: const BoxDecoration(
           image: DecorationImage(
-            image: AssetImage('assets/images/Splash Screen.png'),
+            image: AssetImage('assets/images/SplashScreen.png'),
             fit: BoxFit.cover,
           ),
         ),
@@ -319,48 +306,33 @@ class _OtpScreenState extends State<OtpScreen> {
                         SizedBox(
                           width: double.infinity,
                           child: ElevatedButton(
-                            onPressed: () {
-                              String enteredOtp = _otpControllers
-                                  .map((controller) => controller.text)
-                                  .join();
-
-                              if (enteredOtp.length == 4) {
-                                if (enteredOtp == widget.correctOtp) {
-                                  Navigator.pushReplacement(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => CreateAccountScreen(
-                                        phoneNumber: widget.phoneNumber,
-                                      ),
-                                    ),
-                                  );
-                                } else {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text('Wrong OTP'),
-                                      backgroundColor: Colors.red,
-                                      duration: Duration(seconds: 2),
-                                    ),
-                                  );
-                                }
-                              }
-                            },
+                            onPressed: _isLoading ? null : _verifyOtp,
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: Color(0xFFE91E63),
+                              backgroundColor: const Color(0xFFE91E63),
+                              disabledBackgroundColor: Colors.grey.withOpacity(0.3),
                               padding: const EdgeInsets.symmetric(vertical: 16),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               elevation: 0,
                             ),
-                            child: Text(
-                              'Verify OTP',
-                              style: TextStyle(
-                                fontSize: ResponsiveHelper.getResponsiveFontSize(context, 16),
-                                fontWeight: FontWeight.w600,
-                                color: Colors.white,
-                              ),
-                            ),
+                            child: _isLoading
+                                ? const SizedBox(
+                                    height: 20,
+                                    width: 20,
+                                    child: CircularProgressIndicator(
+                                      color: Colors.white,
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : Text(
+                                    'Verify OTP',
+                                    style: TextStyle(
+                                      fontSize: ResponsiveHelper.getResponsiveFontSize(context, 16),
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.white,
+                                    ),
+                                  ),
                           ),
                         ),
                       ],
@@ -373,6 +345,89 @@ class _OtpScreenState extends State<OtpScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _verifyOtp() async {
+    String enteredOtp = _otpControllers
+        .map((controller) => controller.text)
+        .join();
+
+    // Validate OTP length
+    if (enteredOtp.length != 4) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter complete 4-digit OTP'),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
+      final result = await userProvider.verifyOtp(widget.phoneNumber, enteredOtp);
+
+      if (!mounted) return;
+
+      if (result['success']) {
+        final isProfileComplete = result['isProfileComplete'] ?? false;
+
+        // Show success message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result['message'] ?? 'Login successful'),
+            backgroundColor: const Color(0xFF10B981),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+
+        // Navigate based on profile completion
+        if (isProfileComplete) {
+          // Profile is complete, go to home
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const MainNavigation(),
+            ),
+          );
+        } else {
+          // Profile incomplete, go to complete profile
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => CreateAccountScreen(
+                phoneNumber: widget.phoneNumber,
+              ),
+            ),
+          );
+        }
+      } else {
+        // Show error message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result['message'] ?? 'Invalid OTP'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Something went wrong. Please try again.'),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 2),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
   }
 
   @override

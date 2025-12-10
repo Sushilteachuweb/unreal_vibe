@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../models/event_model.dart';
 import '../../utils/responsive_helper.dart';
-import '../ticket/ticket_booking_screen.dart';
+import '../ticket/ticket_selection_screen.dart';
 
 class EventDetailsScreen extends StatefulWidget {
   final Event event;
@@ -35,6 +35,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
                     _buildHostedBy(context),
                     _buildEventInfo(context),
                     _buildActionButtons(context),
+                    _buildEventDetailsInfo(context),
                     // _buildEventGallery(context),
                     _buildAboutSection(context),
                     _buildPartyFlow(context),
@@ -325,6 +326,94 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildEventDetailsInfo(BuildContext context) {
+    final padding = ResponsiveHelper.getResponsivePadding(context, 16.0);
+    return Container(
+      margin: EdgeInsets.fromLTRB(padding, 20, padding, 0),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1A1A1A),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: const Color(0xFF2A2A2A),
+          width: 1,
+        ),
+      ),
+      child: Column(
+        children: [
+          _buildInfoItem(
+            icon: Icons.people_outline,
+            iconColor: const Color(0xFFE91E63),
+            iconBgColor: const Color(0xFFE91E63).withOpacity(0.15),
+            text: widget.event.ageRestriction ?? 'For age 23 - 34 years',
+          ),
+          const SizedBox(height: 16),
+          _buildInfoItem(
+            icon: Icons.star_outline,
+            iconColor: const Color(0xFFFFA726),
+            iconBgColor: const Color(0xFFFFA726).withOpacity(0.15),
+            text: widget.event.whatsIncluded ?? 'Price Includes 1 Beverage, Nibbles, Experience + BYOB',
+          ),
+          const SizedBox(height: 16),
+          _buildInfoItem(
+            icon: Icons.groups_outlined,
+            iconColor: const Color(0xFF7E57C2),
+            iconBgColor: const Color(0xFF7E57C2).withOpacity(0.15),
+            text: 'You can expect 8 - 20 people in the party',
+          ),
+          const SizedBox(height: 16),
+          _buildInfoItem(
+            icon: Icons.favorite_outline,
+            iconColor: const Color(0xFF26A69A),
+            iconBgColor: const Color(0xFF26A69A).withOpacity(0.15),
+            text: 'This party maintains at least a 60 : 40 male to female ratio',
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInfoItem({
+    required IconData icon,
+    required Color iconColor,
+    required Color iconBgColor,
+    required String text,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 48,
+          height: 48,
+          decoration: BoxDecoration(
+            color: iconBgColor,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(
+            icon,
+            color: iconColor,
+            size: 24,
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.only(top: 12),
+            child: Text(
+              text,
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: ResponsiveHelper.getResponsiveFontSize(context, 15),
+                fontWeight: FontWeight.w400,
+                height: 1.4,
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -786,15 +875,15 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  'Entry Fee',
+                  'Starting From',
                   style: TextStyle(
                     color: Colors.grey,
                     fontSize: 12,
                   ),
                 ),
-                Text(
-                  widget.event.coverCharge,
-                  style: const TextStyle(
+                const Text(
+                  '₹999',
+                  style: TextStyle(
                     color: Color(0xFF00D9A5),
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
@@ -804,63 +893,30 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
             ),
             const SizedBox(width: 16),
             Expanded(
-              child: Row(
-                children: [
-                  Container(
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey[700]!),
-                      borderRadius: BorderRadius.circular(8),
+              child: ElevatedButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => TicketSelectionScreen(event: widget.event),
                     ),
-                    child: Row(
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.remove, color: Colors.white),
-                          onPressed: () {},
-                        ),
-                        const Text(
-                          '1',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.add, color: Colors.white),
-                          onPressed: () {},
-                        ),
-                      ],
-                    ),
+                  );
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF6958CA),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => TicketBookingScreen(event: widget.event),
-                          ),
-                        );
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF6958CA),
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      child: const Text(
-                        'Book Now',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
+                ),
+                child: const Text(
+                  'Book Now',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
                   ),
-                ],
+                ),
               ),
             ),
           ],

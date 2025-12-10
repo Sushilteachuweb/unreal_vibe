@@ -475,7 +475,7 @@ class _PaymentGatewayScreenState extends State<PaymentGatewayScreen> with Single
       borderRadius: BorderRadius.circular(16),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
           color: isSelected ? const Color(0xFF2A1F3D) : const Color(0xFF0F0F17),
           borderRadius: BorderRadius.circular(16),
@@ -513,12 +513,12 @@ class _PaymentGatewayScreenState extends State<PaymentGatewayScreen> with Single
                 size: 20,
               ),
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 4),
             Text(
               option['name']!,
               style: TextStyle(
                 color: isSelected ? Colors.white : Colors.grey[400],
-                fontSize: ResponsiveHelper.getResponsiveFontSize(context, 12),
+                fontSize: ResponsiveHelper.getResponsiveFontSize(context, 11),
                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
               ),
               textAlign: TextAlign.center,
@@ -526,7 +526,7 @@ class _PaymentGatewayScreenState extends State<PaymentGatewayScreen> with Single
               overflow: TextOverflow.ellipsis,
             ),
             if (isSelected) ...[
-              const SizedBox(height: 4),
+              const SizedBox(height: 2),
               Container(
                 width: 16,
                 height: 16,

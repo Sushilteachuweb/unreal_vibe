@@ -16,18 +16,19 @@ class _CreateScreenState extends State<CreateScreen> {
   final _formKey = GlobalKey<FormState>();
   final _dateController = TextEditingController();
   final _localityController = TextEditingController();
-  final _cityController = TextEditingController();
   final _pincodeController = TextEditingController();
 
   DateTime? _selectedDate;
+  String? _selectedCity;
   bool _agreedToTerms = false;
   bool _isLoading = false;
+
+  final List<String> _cities = ['Noida', 'Delhi', 'Gurgaon'];
 
   @override
   void dispose() {
     _dateController.dispose();
     _localityController.dispose();
-    _cityController.dispose();
     _pincodeController.dispose();
     super.dispose();
   }
@@ -35,7 +36,7 @@ class _CreateScreenState extends State<CreateScreen> {
   bool get _isFormValid {
     return _selectedDate != null &&
         _localityController.text.isNotEmpty &&
-        _cityController.text.isNotEmpty &&
+        _selectedCity != null &&
         _pincodeController.text.length == 6 &&
         _agreedToTerms;
   }
@@ -162,16 +163,7 @@ class _CreateScreenState extends State<CreateScreen> {
                 const SizedBox(height: 24),
                 _buildLabel('City'),
                 const SizedBox(height: 8),
-                _buildTextField(
-                  controller: _cityController,
-                  hintText: 'e.g., Noida',
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter city';
-                    }
-                    return null;
-                  },
-                ),
+                _buildCityDropdown(),
                 const SizedBox(height: 24),
                 _buildLabel('Pincode'),
                 const SizedBox(height: 8),
@@ -314,6 +306,67 @@ class _CreateScreenState extends State<CreateScreen> {
         ),
       ),
       validator: validator,
+    );
+  }
+
+  Widget _buildCityDropdown() {
+    return DropdownButtonFormField<String>(
+      dropdownColor: const Color(0xFF1C1C1E),
+      style: const TextStyle(color: Colors.white, fontSize: 15),
+      decoration: InputDecoration(
+        hintText: 'Select a city',
+        hintStyle: const TextStyle(
+          color: Color(0xFF6B7280),
+          fontSize: 15,
+        ),
+        filled: true,
+        fillColor: const Color(0xFF1C1C1E),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: Color(0xFF2C2C2E)),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: Color(0xFF2C2C2E)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: Color(0xFF6958CA)),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: Colors.red),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: Colors.red),
+        ),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 20,
+          vertical: 18,
+        ),
+      ),
+      icon: const Icon(
+        Icons.keyboard_arrow_down,
+        color: Color(0xFF6B7280),
+      ),
+      items: _cities.map((String city) {
+        return DropdownMenuItem<String>(
+          value: city,
+          child: Text(city),
+        );
+      }).toList(),
+      onChanged: (String? newValue) {
+        setState(() {
+          _selectedCity = newValue;
+        });
+      },
+      validator: (value) {
+        if (value == null || value.isEmpty) {
+          return 'Please select a city';
+        }
+        return null;
+      },
     );
   }
 
