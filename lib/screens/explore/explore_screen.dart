@@ -4,6 +4,7 @@ import '../../models/event_model.dart';
 import '../home/event_card.dart';
 import '../home/event_details_screen.dart';
 import '../../providers/user_provider.dart';
+import '../../providers/event_provider.dart';
 import '../search/search_screen.dart';
 
 class ExploreScreen extends StatefulWidget {
@@ -16,47 +17,98 @@ class ExploreScreen extends StatefulWidget {
 class _ExploreScreenState extends State<ExploreScreen> {
   String selectedCategory = 'All';
   final List<String> categories = ['All', 'Art', 'Music', 'Sport', 'Comedy'];
-  final List<Event> allEvents = Event.getMockEvents();
+
+  @override
+  void initState() {
+    super.initState();
+    // Fetch events when the screen loads
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<EventProvider>().fetchEvents();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-    final trendingEvents = allEvents.where((event) => event.isTrending).toList();
-    final filteredEvents = selectedCategory == 'All'
-        ? allEvents
-        : allEvents.where((event) => event.tags.any((tag) =>
-            tag.toLowerCase().contains(selectedCategory.toLowerCase()))).toList();
+    return Consumer<EventProvider>(
+      builder: (context, eventProvider, child) {
+        final trendingEvents = eventProvider.trendingEvents;
+        final filteredEvents = eventProvider.getEventsByCategory(selectedCategory);
+
+        return _buildExploreContent(context, eventProvider, trendingEvents, filteredEvents);
+      },
+    );
+  }
+
+  Widget _buildExploreContent(BuildContext context, EventProvider eventProvider, List<Event> trendingEvents, List<Event> filteredEvents) {
 
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: _buildAppBar(),
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 8),
-            
-            // Search Bar
-            _buildSearchBar(),
-            
-            const SizedBox(height: 16),
-            
-            // Category Chips
-            _buildCategoryChips(),
-            
-            const SizedBox(height: 20),
-            
-            // Trending Near You
-            _buildTrendingSection(trendingEvents),
-            
-            const SizedBox(height: 24),
-            
-            // Upcoming Events
-            _buildUpcomingEventsSection(filteredEvents),
-            
-            const SizedBox(height: 100),
-          ],
-        ),
-      ),
+      body: eventProvider.isLoading
+          ? const Center(child: CircularProgressIndicator(color: Color(0xFF6958CA)))
+          : eventProvider.error != null
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(
+                          Icons.error_outline,
+                          color: Colors.red,
+                          size: 48,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Failed to load events',
+                          style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          eventProvider.error ?? 'Unknown error',
+                          style: TextStyle(color: Colors.grey[400], fontSize: 14),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 24),
+                        ElevatedButton(
+                          onPressed: () => eventProvider.fetchEvents(),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF6958CA),
+                          ),
+                          child: const Text('Retry'),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              : SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: 8),
+                      
+                      // Search Bar
+                      _buildSearchBar(),
+                      
+                      const SizedBox(height: 16),
+                      
+                      // Category Chips
+                      _buildCategoryChips(),
+                      
+                      const SizedBox(height: 20),
+                      
+                      // Trending Near You
+                      _buildTrendingSection(trendingEvents),
+                      
+                      const SizedBox(height: 24),
+                      
+                      // Upcoming Events
+                      _buildUpcomingEventsSection(filteredEvents),
+                      
+                      const SizedBox(height: 100),
+                    ],
+                  ),
+                ),
     );
   }
 
@@ -87,7 +139,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
                     userCity,
                     style: TextStyle(
                       color: Colors.white.withOpacity(0.9),
-                      fontSize: 14,
+                      fontSize: 16,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
@@ -235,8 +287,11 @@ class _ExploreScreenState extends State<ExploreScreen> {
             itemCount: trendingEvents.length,
             itemBuilder: (context, index) {
               final event = trendingEvents[index];
+              final screenWidth = MediaQuery.of(context).size.width;
+              // Make first card take most of the screen width with just a peek of the second card
+              final cardWidth = screenWidth - 32 - 40; // 32 for left/right padding, 40 for peek of next card
               return Container(
-                width: 240,
+                width: cardWidth,
                 margin: EdgeInsets.only(
                   right: index < trendingEvents.length - 1 ? 12 : 0,
                 ),
@@ -249,6 +304,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
                   imageUrl: event.imageUrl,
                   tags: event.tags,
                   isHorizontal: true,
+                  status: event.status,
                   onTap: () {
                     Navigator.push(
                       context,
@@ -299,6 +355,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
                   imageUrl: event.imageUrl,
                   tags: event.tags,
                   isHorizontal: false,
+                  status: event.status,
                   onTap: () {
                     Navigator.push(
                       context,

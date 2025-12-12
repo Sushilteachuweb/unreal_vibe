@@ -37,11 +37,11 @@ class _NumberScreenState extends State<NumberScreen> {
               end: Alignment.bottomCenter,
               colors: [
                 Colors.transparent,
-                Colors.black.withOpacity(0.3),
-                Colors.black.withOpacity(0.6),
-                Colors.black.withOpacity(0.9),
+                Colors.black.withOpacity(0.2),
+                Colors.black.withOpacity(0.7),
+                Colors.black.withOpacity(0.95),
               ],
-              stops: const [0.0, 0.3, 0.6, 1.0],
+              stops: const [0.0, 0.2, 0.5, 1.0],
             ),
           ),
           child: SafeArea(
@@ -61,8 +61,8 @@ class _NumberScreenState extends State<NumberScreen> {
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
                         colors: [
-                          Color(0xFFAB3965).withOpacity(0.9),
-                          Color(0xFF2F1518).withOpacity(0.95),
+                          Color(0xFFAB3965).withOpacity(0.85),
+                          Color(0xFF2F1518).withOpacity(0.98),
                         ],
                       ),
                       borderRadius: const BorderRadius.only(
@@ -197,34 +197,48 @@ class _NumberScreenState extends State<NumberScreen> {
                         const SizedBox(height: 20),
                         SizedBox(
                           width: double.infinity,
-                          child: ElevatedButton(
-                            onPressed: (_isChecked && !_isLoading) ? _sendOtp : null,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFFCC3263),
-                              disabledBackgroundColor: Colors.grey.withOpacity(0.3),
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              elevation: 0,
+                          height: 56.0,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              gradient: (_isChecked && !_isLoading)
+                                  ? const LinearGradient(
+                                      colors: [Color(0xFFE91E63), Color(0xFFAD1457)],
+                                      begin: Alignment.topCenter,
+                                      end: Alignment.bottomCenter,
+                                    )
+                                  : null,
+                              color: (_isChecked && !_isLoading) ? null : Colors.grey.withOpacity(0.3),
+                              borderRadius: BorderRadius.circular(28.0),
                             ),
-                            child: _isLoading
-                                ? const SizedBox(
-                                    height: 20,
-                                    width: 20,
-                                    child: CircularProgressIndicator(
-                                      color: Colors.white,
-                                      strokeWidth: 2,
+                            child: ElevatedButton(
+                              onPressed: (_isChecked && !_isLoading) ? _sendOtp : null,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.transparent,
+                                disabledBackgroundColor: Colors.transparent,
+                                shadowColor: Colors.transparent,
+                                elevation: 0,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(28.0),
+                                ),
+                              ),
+                              child: _isLoading
+                                  ? const SizedBox(
+                                      height: 20,
+                                      width: 20,
+                                      child: CircularProgressIndicator(
+                                        color: Colors.white,
+                                        strokeWidth: 2,
+                                      ),
+                                    )
+                                  : Text(
+                                      'Send OTP',
+                                      style: TextStyle(
+                                        fontSize: ResponsiveHelper.getResponsiveFontSize(context, 16),
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.white,
+                                      ),
                                     ),
-                                  )
-                                : Text(
-                                    'Send OTP',
-                                    style: TextStyle(
-                                      fontSize: ResponsiveHelper.getResponsiveFontSize(context, 16),
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.white,
-                                    ),
-                                  ),
+                            ),
                           ),
                         ),
                       ],

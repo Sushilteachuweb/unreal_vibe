@@ -15,6 +15,14 @@ class ApiConfig {
   static const String profile = "$baseUrl/user/profile";
   static const String updateProfile = "$baseUrl/user/update-profile";
   
+  // Event endpoints
+  static const String getEvents = "$baseUrl/event/eventsoutput";
+  
+  // Alternative event endpoints to try if main one fails
+  static const String getEventsAlt1 = "$baseUrl/events";
+  static const String getEventsAlt2 = "$baseUrl/event/events";
+  static const String getEventsAlt3 = "$baseUrl/event/list";
+  
   // Headers
   static Map<String, String> get headers => {
     'Content-Type': 'application/json',

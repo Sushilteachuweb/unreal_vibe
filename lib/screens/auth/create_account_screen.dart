@@ -49,11 +49,11 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
               end: Alignment.bottomCenter,
               colors: [
                 Colors.transparent,
-                Colors.black.withOpacity(0.3),
-                Colors.black.withOpacity(0.6),
-                Colors.black.withOpacity(0.9),
+                Colors.black.withOpacity(0.2),
+                Colors.black.withOpacity(0.7),
+                Colors.black.withOpacity(0.95),
               ],
-              stops: const [0.0, 0.3, 0.6, 1.0],
+              stops: const [0.0, 0.2, 0.5, 1.0],
             ),
           ),
           child: SafeArea(
@@ -80,8 +80,8 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                             begin: Alignment.topCenter,
                             end: Alignment.bottomCenter,
                             colors: [
-                              const Color(0xFFAB3965).withOpacity(0.9),
-                              const Color(0xFF2F1518).withOpacity(0.95),
+                              const Color(0xFFAB3965).withOpacity(0.85),
+                              const Color(0xFF2F1518).withOpacity(0.98),
                             ],
                           ),
                           borderRadius: const BorderRadius.only(
@@ -172,35 +172,48 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
 
                             SizedBox(
                               width: double.infinity,
-                              child: ElevatedButton(
-                                onPressed: (_agreeToTerms && !_isLoading) ? _createAccount : null,
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFFE91E63),
-                                  disabledBackgroundColor:
-                                  Colors.grey.withOpacity(0.3),
-                                  padding: const EdgeInsets.symmetric(vertical: 16),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  elevation: 0,
+                              height: 56.0,
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  gradient: (_agreeToTerms && !_isLoading)
+                                      ? const LinearGradient(
+                                          colors: [Color(0xFFFF4081), Color(0xFFE91E63)],
+                                          begin: Alignment.topLeft,
+                                          end: Alignment.bottomRight,
+                                        )
+                                      : null,
+                                  color: (_agreeToTerms && !_isLoading) ? null : Colors.grey.withOpacity(0.3),
+                                  borderRadius: BorderRadius.circular(28.0),
                                 ),
-                                child: _isLoading
-                                    ? const SizedBox(
-                                        height: 20,
-                                        width: 20,
-                                        child: CircularProgressIndicator(
-                                          color: Colors.white,
-                                          strokeWidth: 2,
+                                child: ElevatedButton(
+                                  onPressed: (_agreeToTerms && !_isLoading) ? _createAccount : null,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.transparent,
+                                    disabledBackgroundColor: Colors.transparent,
+                                    shadowColor: Colors.transparent,
+                                    elevation: 0,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(28.0),
+                                    ),
+                                  ),
+                                  child: _isLoading
+                                      ? const SizedBox(
+                                          height: 20,
+                                          width: 20,
+                                          child: CircularProgressIndicator(
+                                            color: Colors.white,
+                                            strokeWidth: 2,
+                                          ),
+                                        )
+                                      : const Text(
+                                          'Submit',
+                                          style: TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w600,
+                                            color: Colors.white,
+                                          ),
                                         ),
-                                      )
-                                    : const Text(
-                                        'Submit',
-                                        style: TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.w600,
-                                          color: Colors.white,
-                                        ),
-                                      ),
+                                ),
                               ),
                             ),
                           ],

@@ -69,7 +69,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final padding = ResponsiveHelper.getResponsivePadding(context, 16.0);
+    final padding = ResponsiveHelper.isMobile(context) 
+        ? ResponsiveHelper.getMobilePadding(context)
+        : ResponsiveHelper.getResponsivePadding(context, 16.0);
     
     return Scaffold(
       backgroundColor: Colors.black,
@@ -151,7 +153,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     userCity,
                     style: TextStyle(
                       color: Colors.white.withOpacity(0.9),
-                      fontSize: 14,
+                      fontSize: 16,
                       fontWeight: FontWeight.w500,
                     ),
                   ),

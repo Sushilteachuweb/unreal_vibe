@@ -80,7 +80,7 @@ class _TicketsScreenState extends State<TicketsScreen> with TickerProviderStateM
                     userCity,
                     style: TextStyle(
                       color: Colors.white.withOpacity(0.9),
-                      fontSize: 14,
+                      fontSize: 16,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
@@ -326,17 +326,17 @@ class _TicketsScreenState extends State<TicketsScreen> with TickerProviderStateM
                       child: Container(
                         height: 48,
                         decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [Color(0xFFFF4081), Color(0xFFFF6B9D)],
-                            begin: Alignment.centerLeft,
-                            end: Alignment.centerRight,
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFFFF4081), Color(0xFFE91E63)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
                           ),
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(24.0),
                         ),
                         child: Material(
                           color: Colors.transparent,
                           child: InkWell(
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(24.0),
                             onTap: () {
                               // Handle QR Code view
                             },

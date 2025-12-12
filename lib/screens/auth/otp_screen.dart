@@ -130,11 +130,11 @@ class _OtpScreenState extends State<OtpScreen> {
               end: Alignment.bottomCenter,
               colors: [
                 Colors.transparent,
-                Colors.black.withOpacity(0.3),
-                Colors.black.withOpacity(0.6),
-                Colors.black.withOpacity(0.9),
+                Colors.black.withOpacity(0.2),
+                Colors.black.withOpacity(0.7),
+                Colors.black.withOpacity(0.95),
               ],
-              stops: const [0.0, 0.3, 0.6, 1.0],
+              stops: const [0.0, 0.2, 0.5, 1.0],
             ),
           ),
           child: SafeArea(
@@ -151,8 +151,8 @@ class _OtpScreenState extends State<OtpScreen> {
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
                         colors: [
-                          Color(0xFFAB3965).withOpacity(0.9),
-                          Color(0xFF2F1518).withOpacity(0.95),
+                          Color(0xFFAB3965).withOpacity(0.85),
+                          Color(0xFF2F1518).withOpacity(0.98),
                         ],
                       ),
                       borderRadius: const BorderRadius.only(
@@ -183,25 +183,21 @@ class _OtpScreenState extends State<OtpScreen> {
                       const SizedBox(height: 30),
 
                       Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                         children: List.generate(
                           4,
                               (index) => Container(
-                            width: 65,
-                            height: 65,
+                            width: 45,
+                            height: 45,
                             alignment: Alignment.center,
                             decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.15),
-                              borderRadius: BorderRadius.circular(12),
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(8),
                               border: Border.all(
-                                color:
-                                _otpControllers[index].text.isNotEmpty
+                                color: _otpControllers[index].text.isNotEmpty
                                     ? Color(0xFFE91E63)
-                                    : Colors.white.withOpacity(0.2),
-                                width:
-                                _otpControllers[index].text.isNotEmpty
-                                    ? 2
-                                    : 1,
+                                    : Colors.grey.withOpacity(0.3),
+                                width: _otpControllers[index].text.isNotEmpty ? 2 : 1,
                               ),
                             ),
                             child: TextField(
@@ -214,15 +210,15 @@ class _OtpScreenState extends State<OtpScreen> {
                               maxLines: 1,
                               minLines: 1,
                               style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 24,
+                                color: Colors.black,
+                                fontSize: 18,
                                 fontWeight: FontWeight.bold,
                                 height: 1.0,
                               ),
                               inputFormatters: [
                                 FilteringTextInputFormatter.digitsOnly,
                               ],
-                              decoration: InputDecoration(
+                              decoration: const InputDecoration(
                                 counterText: '',
                                 border: InputBorder.none,
                                 contentPadding: EdgeInsets.zero,
@@ -230,9 +226,7 @@ class _OtpScreenState extends State<OtpScreen> {
                                 isCollapsed: true,
                               ),
                               onChanged: (value) {
-                                setState(
-                                      () {},
-                                ); // Rebuild to update border color
+                                setState(() {}); // Rebuild to update border color
                                 if (value.length == 1) {
                                   if (index < 3) {
                                     _focusNodes[index + 1].requestFocus();
@@ -305,34 +299,48 @@ class _OtpScreenState extends State<OtpScreen> {
                         const SizedBox(height: 30),
                         SizedBox(
                           width: double.infinity,
-                          child: ElevatedButton(
-                            onPressed: _isLoading ? null : _verifyOtp,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFFE91E63),
-                              disabledBackgroundColor: Colors.grey.withOpacity(0.3),
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              elevation: 0,
+                          height: 56.0,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              gradient: !_isLoading
+                                  ? const LinearGradient(
+                                      colors: [Color(0xFFFF4081), Color(0xFFE91E63)],
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                    )
+                                  : null,
+                              color: _isLoading ? Colors.grey.withOpacity(0.3) : null,
+                              borderRadius: BorderRadius.circular(28.0),
                             ),
-                            child: _isLoading
-                                ? const SizedBox(
-                                    height: 20,
-                                    width: 20,
-                                    child: CircularProgressIndicator(
-                                      color: Colors.white,
-                                      strokeWidth: 2,
+                            child: ElevatedButton(
+                              onPressed: _isLoading ? null : _verifyOtp,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.transparent,
+                                disabledBackgroundColor: Colors.transparent,
+                                shadowColor: Colors.transparent,
+                                elevation: 0,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(28.0),
+                                ),
+                              ),
+                              child: _isLoading
+                                  ? const SizedBox(
+                                      height: 20,
+                                      width: 20,
+                                      child: CircularProgressIndicator(
+                                        color: Colors.white,
+                                        strokeWidth: 2,
+                                      ),
+                                    )
+                                  : Text(
+                                      'Verify OTP',
+                                      style: TextStyle(
+                                        fontSize: ResponsiveHelper.getResponsiveFontSize(context, 16),
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.white,
+                                      ),
                                     ),
-                                  )
-                                : Text(
-                                    'Verify OTP',
-                                    style: TextStyle(
-                                      fontSize: ResponsiveHelper.getResponsiveFontSize(context, 16),
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.white,
-                                    ),
-                                  ),
+                            ),
                           ),
                         ),
                       ],

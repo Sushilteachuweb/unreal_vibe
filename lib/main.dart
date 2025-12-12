@@ -2,12 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'screens/auth/splash_screen.dart';
 import 'providers/user_provider.dart';
+import 'providers/event_provider.dart';
 import 'navigation/main_navigation.dart';
 
 void main() {
   runApp(
-    ChangeNotifierProvider(
-      create: (_) => UserProvider(),
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => UserProvider()),
+        ChangeNotifierProvider(create: (_) => EventProvider()),
+      ],
       child: const MyApp(),
     ),
   );

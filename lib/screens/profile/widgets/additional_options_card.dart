@@ -6,7 +6,6 @@ class AdditionalOptionsCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20),
       decoration: BoxDecoration(
         color: const Color(0xFF1A1A1A),
         borderRadius: BorderRadius.circular(16),
@@ -63,7 +62,6 @@ class AdditionalOptionsCard extends StatelessWidget {
     return Container(
       height: 1,
       color: const Color(0xFF2A2A2A),
-      margin: const EdgeInsets.symmetric(horizontal: 20),
     );
   }
 }

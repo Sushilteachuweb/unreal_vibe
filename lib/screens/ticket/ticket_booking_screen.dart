@@ -502,14 +502,14 @@ class _TicketBookingScreenState extends State<TicketBookingScreen> {
         height: 60,
         decoration: BoxDecoration(
           gradient: const LinearGradient(
-            colors: [Color(0xFF7B5FFF), Color(0xFF9D7FFF)],
-            begin: Alignment.centerLeft,
-            end: Alignment.centerRight,
+            colors: [Color(0xFFFF4081), Color(0xFFE91E63)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
           ),
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(30.0),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFF7B5FFF).withOpacity(0.4),
+              color: const Color(0xFFFF4081).withOpacity(0.4),
               blurRadius: 20,
               offset: const Offset(0, 10),
             ),
@@ -520,8 +520,9 @@ class _TicketBookingScreenState extends State<TicketBookingScreen> {
           style: ElevatedButton.styleFrom(
             backgroundColor: Colors.transparent,
             shadowColor: Colors.transparent,
+            elevation: 0,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
+              borderRadius: BorderRadius.circular(30.0),
             ),
           ),
           child: Text(

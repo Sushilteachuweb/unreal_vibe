@@ -25,13 +25,13 @@ class CustomBottomNavigation extends StatelessWidget {
       ),
       child: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8), // Removed horizontal padding
+          padding: const EdgeInsets.symmetric(vertical: 8),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
               Expanded(
                 child: _buildNavItem(
-                  icon: Icons.home,
+                  icon: Icons.home_outlined,
                   label: 'Home',
                   index: 0,
                   isActive: currentIndex == 0,
@@ -39,7 +39,7 @@ class CustomBottomNavigation extends StatelessWidget {
               ),
               Expanded(
                 child: _buildNavItem(
-                  icon: Icons.explore,
+                  icon: Icons.search_outlined,
                   label: 'Explore',
                   index: 1,
                   isActive: currentIndex == 1,
@@ -47,16 +47,15 @@ class CustomBottomNavigation extends StatelessWidget {
               ),
               Expanded(
                 child: _buildNavItem(
-                  icon: Icons.add_circle_outlined,
+                  icon: Icons.add_circle_outline,
                   label: 'Host',
                   index: 2,
                   isActive: currentIndex == 2,
-                  isSpecial: true,
                 ),
               ),
               Expanded(
                 child: _buildNavItem(
-                  icon: Icons.confirmation_number,
+                  icon: Icons.confirmation_number_outlined,
                   label: 'Tickets',
                   index: 3,
                   isActive: currentIndex == 3,
@@ -82,41 +81,41 @@ class CustomBottomNavigation extends StatelessWidget {
     required String label,
     required int index,
     required bool isActive,
-    bool isSpecial = false,
   }) {
     return GestureDetector(
       onTap: () => onTap(index),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            padding: isSpecial ? const EdgeInsets.all(4) : EdgeInsets.zero,
-            decoration: isSpecial
-                ? BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [Color(0xFF6958CA), Color(0xFF8A7BFF)],
-                    ),
-                    borderRadius: BorderRadius.circular(20),
-                  )
-                : null,
-            child: Icon(
-              icon,
-              size: isSpecial ? 32 : 24,
-              color: isActive
-                  ? (isSpecial ? Colors.white : Color(0xFF6958CA))
-                  : Colors.grey[300],
+      behavior: HitTestBehavior.opaque, // This ensures the entire area is tappable
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: isActive
+                  ? BoxDecoration(
+                      color: const Color(0xFF6958CA).withOpacity(0.2),
+                      shape: BoxShape.circle,
+                    )
+                  : null,
+              child: Icon(
+                icon,
+                size: 24,
+                color: isActive ? const Color(0xFF6958CA) : Colors.grey[400],
+              ),
             ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 11,
-              color: isActive ? Color(0xFF6958CA) : Colors.grey[600],
-              fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 11,
+                color: isActive ? const Color(0xFF6958CA) : Colors.grey[600],
+                fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

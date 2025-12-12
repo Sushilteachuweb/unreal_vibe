@@ -29,6 +29,11 @@ class ResponsiveHelper {
     return padding;
   }
 
+  static double getMobilePadding(BuildContext context) {
+    // Optimized padding for mobile devices - minimal padding for maximum content width
+    return 8.0;
+  }
+
   static int getGridCrossAxisCount(BuildContext context) {
     if (isDesktop(context)) return 4;
     if (isTablet(context)) return 3;

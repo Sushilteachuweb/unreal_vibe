@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../models/event_model.dart';
 import '../../utils/responsive_helper.dart';
+import '../../providers/event_provider.dart';
 import '../ticket/ticket_selection_screen.dart';
 
 class EventDetailsScreen extends StatefulWidget {
@@ -14,6 +16,7 @@ class EventDetailsScreen extends StatefulWidget {
 
 class _EventDetailsScreenState extends State<EventDetailsScreen> {
   Event get event => widget.event;
+  int _selectedAboutTab = 0; // 0 for About The Party, 1 for Party Terms
 
   @override
   Widget build(BuildContext context) {
@@ -38,8 +41,6 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
                     _buildEventDetailsInfo(context),
                     // _buildEventGallery(context),
                     _buildAboutSection(context),
-                    _buildPartyFlow(context),
-                    _buildThingsToKnow(context),
                     _buildExpandableSections(context),
                     _buildAllEvents(context),
                     const SizedBox(height: 100),
@@ -87,16 +88,27 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
         background: Stack(
           fit: StackFit.expand,
           children: [
-            Image.asset(
-              widget.event.imageUrl,
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) {
-                return Container(
-                  color: Colors.grey[800],
-                  child: const Icon(Icons.image, color: Colors.grey, size: 48),
-                );
-              },
-            ),
+            widget.event.imageUrl.startsWith('http')
+                ? Image.network(
+                    widget.event.imageUrl,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Container(
+                        color: Colors.grey[800],
+                        child: const Icon(Icons.image, color: Colors.grey, size: 48),
+                      );
+                    },
+                  )
+                : Image.asset(
+                    widget.event.imageUrl,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Container(
+                        color: Colors.grey[800],
+                        child: const Icon(Icons.image, color: Colors.grey, size: 48),
+                      );
+                    },
+                  ),
             Container(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
@@ -135,76 +147,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
     );
   }
 
-  Widget _buildDJSection(BuildContext context) {
-    final padding = ResponsiveHelper.getResponsivePadding(context, 16.0);
-    return Padding(
-      padding: EdgeInsets.symmetric(horizontal: padding),
-      child: Row(
-        children: [
-          CircleAvatar(
-            radius: 20,
-            backgroundImage: widget.event.djImage != null
-                ? NetworkImage(widget.event.djImage!)
-                : null,
-            backgroundColor: Colors.grey[800],
-            child: widget.event.djImage == null
-                ? const Icon(Icons.person, color: Colors.white, size: 20)
-                : null,
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  widget.event.djName ?? 'DJ Marcos',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: ResponsiveHelper.getResponsiveFontSize(context, 16),
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                Row(
-                  children: [
-                    const Icon(Icons.location_on, color: Colors.grey, size: 14),
-                    const SizedBox(width: 4),
-                    Text(
-                      widget.event.location,
-                      style: TextStyle(
-                        color: Colors.grey[400],
-                        fontSize: ResponsiveHelper.getResponsiveFontSize(context, 12),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          Row(
-            children: [
-              const Icon(Icons.star, color: Colors.amber, size: 16),
-              const SizedBox(width: 4),
-              Text(
-                '${widget.event.rating ?? 4.8}',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: ResponsiveHelper.getResponsiveFontSize(context, 14),
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              Text(
-                ' (${widget.event.ratingCount ?? 4853})',
-                style: TextStyle(
-                  color: Colors.grey[400],
-                  fontSize: ResponsiveHelper.getResponsiveFontSize(context, 12),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
+
 
   Widget _buildEventInfo(BuildContext context) {
     final padding = ResponsiveHelper.getResponsivePadding(context, 16.0);
@@ -216,8 +159,8 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
             child: _buildInfoCard(
               context: context,
               icon: Icons.calendar_today,
-              title: 'September 18,',
-              subtitle: '2025, 8:00 PM to 2:00 AM',
+              title: widget.event.date,
+              subtitle: widget.event.time != null ? '${widget.event.time}' : 'Time TBA',
             ),
           ),
           const SizedBox(width: 12),
@@ -225,8 +168,8 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
             child: _buildInfoCard(
               context: context,
               icon: Icons.location_on,
-              title: 'Grand Avenue',
-              subtitle: 'Gurgaon, ID',
+              title: widget.event.location,
+              subtitle: widget.event.location,
             ),
           ),
         ],
@@ -418,64 +361,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
   }
 
 
-  Widget _buildGalleryPlaceholder(int index) {
-    return Container(
-      width: 100,
-      margin: const EdgeInsets.only(right: 8),
-      decoration: BoxDecoration(
-        color: Colors.grey[800],
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(12),
-        child: Image.asset(
-          'assets/images/house_party.jpg',
-          fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) {
-            return Container(
-              color: Colors.grey[800],
-              child: const Icon(Icons.person, color: Colors.grey, size: 40),
-            );
-          },
-        ),
-      ),
-    );
-  }
 
-  Widget _buildGalleryImage(String imageUrl) {
-    return Container(
-      width: 100,
-      margin: const EdgeInsets.only(right: 8),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        image: DecorationImage(
-          image: NetworkImage(imageUrl),
-          fit: BoxFit.cover,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMoreImagesCard() {
-    return Container(
-      width: 100,
-      margin: const EdgeInsets.only(right: 8),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1A1A1A),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: const Center(
-        child: Text(
-          '+12',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      ),
-    );
-  }
 
   Widget _buildAboutSection(BuildContext context) {
     final padding = ResponsiveHelper.getResponsivePadding(context, 16.0);
@@ -492,80 +378,150 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
               fontWeight: FontWeight.bold,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 16),
+          // Tab buttons
+          Row(
+            children: [
+              _buildTabButton(
+                context,
+                'About The Party',
+                0,
+                _selectedAboutTab == 0,
+              ),
+              const SizedBox(width: 24),
+              _buildTabButton(
+                context,
+                'Party Terms',
+                1,
+                _selectedAboutTab == 1,
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          // Tab content
+          _selectedAboutTab == 0 ? _buildAboutContent(context) : _buildPartyTermsContent(context),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTabButton(BuildContext context, String title, int index, bool isSelected) {
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _selectedAboutTab = index;
+        });
+      },
+      child: Column(
+        children: [
           Text(
-            widget.event.aboutParty ??
-                'Join us for an unforgettable night of music, dancing, and great vibes. This party promises to be an experience you won\'t forget!',
+            title,
             style: TextStyle(
-              color: Colors.grey[400],
+              color: isSelected ? const Color(0xFF6958CA) : Colors.grey[400],
               fontSize: ResponsiveHelper.getResponsiveFontSize(context, 14),
-              height: 1.5,
+              fontWeight: FontWeight.w600,
             ),
+          ),
+          const SizedBox(height: 8),
+          Container(
+            height: 2,
+            width: title.length * 8.0,
+            color: isSelected ? const Color(0xFF6958CA) : Colors.transparent,
           ),
         ],
       ),
     );
   }
 
-  Widget _buildPartyFlow(BuildContext context) {
-    final padding = ResponsiveHelper.getResponsivePadding(context, 16.0);
-    return Padding(
-      padding: EdgeInsets.all(padding),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Party Flow',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: ResponsiveHelper.getResponsiveFontSize(context, 18),
-              fontWeight: FontWeight.bold,
-            ),
+  Widget _buildAboutContent(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Party Flow',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: ResponsiveHelper.getResponsiveFontSize(context, 16),
+            fontWeight: FontWeight.bold,
           ),
-          const SizedBox(height: 8),
-          Text(
-            widget.event.partyFlow ??
-                'Dive into the night with house music at 10 PM till 2 AM. Expect an electrifying atmosphere with top DJs spinning the best tracks.',
-            style: TextStyle(
-              color: Colors.grey[400],
-              fontSize: ResponsiveHelper.getResponsiveFontSize(context, 14),
-              height: 1.5,
-            ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          widget.event.partyFlow ??
+              'Kick off the night with some chill lo-fi beats, transitioning into groovy house music as the vibe picks up. Expect a surprise guest DJ set around midnight! The dance floor will be open all night long.',
+          style: TextStyle(
+            color: Colors.grey[400],
+            fontSize: ResponsiveHelper.getResponsiveFontSize(context, 14),
+            height: 1.5,
           ),
-        ],
-      ),
+        ),
+        const SizedBox(height: 16),
+        Text(
+          'Things to Know',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: ResponsiveHelper.getResponsiveFontSize(context, 16),
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          widget.event.thingsToKnow ??
+              'We\'ve got a fully stocked bar with signature cocktails. No outside food or drinks allowed. Coat check is available at the entrance.',
+          style: TextStyle(
+            color: Colors.grey[400],
+            fontSize: ResponsiveHelper.getResponsiveFontSize(context, 14),
+            height: 1.5,
+          ),
+        ),
+      ],
     );
   }
 
-  Widget _buildThingsToKnow(BuildContext context) {
-    final padding = ResponsiveHelper.getResponsivePadding(context, 16.0);
-    return Padding(
-      padding: EdgeInsets.all(padding),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Things to Know',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: ResponsiveHelper.getResponsiveFontSize(context, 18),
-              fontWeight: FontWeight.bold,
-            ),
+  Widget _buildPartyTermsContent(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Terms & Conditions',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: ResponsiveHelper.getResponsiveFontSize(context, 16),
+            fontWeight: FontWeight.bold,
           ),
-          const SizedBox(height: 8),
-          Text(
-            widget.event.thingsToKnow ??
-                'Please note that this event has age restrictions. Valid ID required at the entrance.',
-            style: TextStyle(
-              color: Colors.grey[400],
-              fontSize: ResponsiveHelper.getResponsiveFontSize(context, 14),
-              height: 1.5,
-            ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          '• Must be 21+ with valid ID\n• No refunds or exchanges\n• Event may be cancelled due to weather\n• Photography and videography allowed\n• Management reserves the right to refuse entry',
+          style: TextStyle(
+            color: Colors.grey[400],
+            fontSize: ResponsiveHelper.getResponsiveFontSize(context, 14),
+            height: 1.5,
           ),
-        ],
-      ),
+        ),
+        const SizedBox(height: 16),
+        Text(
+          'Safety Guidelines',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: ResponsiveHelper.getResponsiveFontSize(context, 16),
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          '• Please drink responsibly\n• Report any incidents to security\n• Emergency exits are clearly marked\n• First aid station available on-site',
+          style: TextStyle(
+            color: Colors.grey[400],
+            fontSize: ResponsiveHelper.getResponsiveFontSize(context, 14),
+            height: 1.5,
+          ),
+        ),
+      ],
     );
   }
+
+
 
   Widget _buildExpandableSections(BuildContext context) {
     return Column(
@@ -639,104 +595,116 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
 
   Widget _buildAllEvents(BuildContext context) {
     final padding = ResponsiveHelper.getResponsivePadding(context, 16.0);
-    final allEvents = Event.getMockEvents();
-    // Exclude current event from the list
-    final otherEvents = allEvents.where((event) => event.id != widget.event.id).take(5).toList();
     
-    return Padding(
-      padding: EdgeInsets.all(padding),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'All Events',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: ResponsiveHelper.getResponsiveFontSize(context, 24),
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-
-          if (otherEvents.isEmpty)
-            Container(
-              height: 200,
-              child: Center(
-                child: Text(
-                  'No other events available',
-                  style: TextStyle(
-                    color: Colors.grey[400],
-                    fontSize: 16,
-                  ),
+    return Consumer<EventProvider>(
+      builder: (context, eventProvider, child) {
+        // Exclude current event from the list
+        final otherEvents = eventProvider.events.where((event) => event.id != widget.event.id).take(5).toList();
+        
+        return Padding(
+          padding: EdgeInsets.all(padding),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'All Events',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: ResponsiveHelper.getResponsiveFontSize(context, 24),
+                  fontWeight: FontWeight.bold,
                 ),
               ),
-            )
-          else
-            ListView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: otherEvents.length,
-              itemBuilder: (context, index) {
-                final event = otherEvents[index];
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 16),
-                  child: _buildEventCard(event.title, event.location, event.imageUrl, context),
-                );
-              },
-            ),
-        ],
-      ),
+
+              if (otherEvents.isEmpty)
+                Container(
+                  height: 200,
+                  child: Center(
+                    child: Text(
+                      'No other events available',
+                      style: TextStyle(
+                        color: Colors.grey[400],
+                        fontSize: 16,
+                      ),
+                    ),
+                  ),
+                )
+              else
+                ListView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: otherEvents.length,
+                  itemBuilder: (context, index) {
+                    final event = otherEvents[index];
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 16),
+                      child: _buildEventCard(event, context),
+                    );
+                  },
+                ),
+            ],
+          ),
+        );
+      },
     );
   }
 
-  Widget _buildEventCard(String title, String location, String imageUrl, BuildContext context) {
+  Widget _buildEventCard(Event event, BuildContext context) {
     return GestureDetector(
       onTap: () {
-        // Find the event from mock events and navigate to its details
-        final allEvents = Event.getMockEvents();
-        final clickedEvent = allEvents.firstWhere(
-          (event) => event.title == title && event.location == location,
-          orElse: () => allEvents.first, // fallback to first event
-        );
-        
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => EventDetailsScreen(event: clickedEvent),
+            builder: (context) => EventDetailsScreen(event: event),
           ),
         );
       },
       child: Container(
-        height: 160,
+        height: 100,
         width: double.infinity,
         decoration: BoxDecoration(
           color: const Color(0xFF1E1E1E),
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(16),
         ),
         child: Row(
           children: [
             ClipRRect(
               borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(20),
-                bottomLeft: Radius.circular(20),
+                topLeft: Radius.circular(16),
+                bottomLeft: Radius.circular(16),
               ),
-              child: Image.asset(
-                imageUrl,
-                width: 140,
-                height: 160,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) {
-                  return Container(
-                    width: 140,
-                    height: 160,
-                    color: Colors.grey[800],
-                    child: const Icon(Icons.image, color: Colors.grey, size: 40),
-                  );
-                },
-              ),
+              child: event.imageUrl.startsWith('http')
+                  ? Image.network(
+                      event.imageUrl,
+                      width: 90,
+                      height: 100,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Container(
+                          width: 90,
+                          height: 100,
+                          color: Colors.grey[800],
+                          child: const Icon(Icons.image, color: Colors.grey, size: 30),
+                        );
+                      },
+                    )
+                  : Image.asset(
+                      event.imageUrl,
+                      width: 90,
+                      height: 100,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Container(
+                          width: 90,
+                          height: 100,
+                          color: Colors.grey[800],
+                          child: const Icon(Icons.image, color: Colors.grey, size: 30),
+                        );
+                      },
+                    ),
             ),
             Expanded(
               child: Padding(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(12),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -745,28 +713,28 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
                       'DEC 01 | SUN',
                       style: TextStyle(
                         color: const Color(0xFF8B7FD9),
-                        fontSize: ResponsiveHelper.getResponsiveFontSize(context, 13),
+                        fontSize: ResponsiveHelper.getResponsiveFontSize(context, 11),
                         fontWeight: FontWeight.w600,
                         letterSpacing: 0.5,
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 4),
                     Text(
-                      title,
+                      event.title,
                       style: TextStyle(
                         color: Colors.white,
-                        fontSize: ResponsiveHelper.getResponsiveFontSize(context, 18),
+                        fontSize: ResponsiveHelper.getResponsiveFontSize(context, 15),
                         fontWeight: FontWeight.bold,
                       ),
-                      maxLines: 2,
+                      maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 4),
                     Text(
-                      location,
+                      event.location,
                       style: TextStyle(
                         color: Colors.grey[500],
-                        fontSize: ResponsiveHelper.getResponsiveFontSize(context, 14),
+                        fontSize: ResponsiveHelper.getResponsiveFontSize(context, 12),
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -776,11 +744,11 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.only(right: 16),
+              padding: const EdgeInsets.only(right: 12),
               child: Icon(
                 Icons.arrow_forward_ios,
                 color: Colors.grey[600],
-                size: 20,
+                size: 16,
               ),
             ),
           ],
@@ -802,16 +770,16 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
         child: Row(
           children: [
             CircleAvatar(
-              radius: 35,
+              radius: 25,
               backgroundImage: widget.event.djImage != null
                   ? NetworkImage(widget.event.djImage!)
                   : null,
               backgroundColor: Colors.grey[800],
               child: widget.event.djImage == null
-                  ? const Icon(Icons.person, color: Colors.white, size: 35)
+                  ? const Icon(Icons.person, color: Colors.white, size: 25)
                   : null,
             ),
-            const SizedBox(width: 16),
+            const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -828,7 +796,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
                     widget.event.hostName ?? widget.event.djName ?? 'Vishal Singh',
                     style: TextStyle(
                       color: Colors.white,
-                      fontSize: ResponsiveHelper.getResponsiveFontSize(context, 20),
+                      fontSize: ResponsiveHelper.getResponsiveFontSize(context, 16),
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -839,11 +807,18 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text(
-                  '${widget.event.partiesHosted ?? 3} Parties Hosted',
+                  '${widget.event.partiesHosted ?? 3} Parties',
                   style: TextStyle(
                     color: Colors.grey[300],
                     fontSize: ResponsiveHelper.getResponsiveFontSize(context, 14),
                     fontWeight: FontWeight.w600,
+                  ),
+                ),
+                Text(
+                  'Hosted',
+                  style: TextStyle(
+                    color: Colors.grey[400],
+                    fontSize: ResponsiveHelper.getResponsiveFontSize(context, 12),
                   ),
                 ),
               ],
@@ -881,8 +856,8 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
                     fontSize: 12,
                   ),
                 ),
-                const Text(
-                  '₹999',
+                Text(
+                  widget.event.coverCharge,
                   style: TextStyle(
                     color: Color(0xFF00D9A5),
                     fontSize: 24,
@@ -893,28 +868,40 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
             ),
             const SizedBox(width: 16),
             Expanded(
-              child: ElevatedButton(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => TicketSelectionScreen(event: widget.event),
-                    ),
-                  );
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF6958CA),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
+              child: Container(
+                height: 56.0,
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFFFF4081), Color(0xFFE91E63)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
                   ),
+                  borderRadius: BorderRadius.circular(28.0),
                 ),
-                child: const Text(
-                  'Book Now',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
+                child: ElevatedButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => TicketSelectionScreen(event: widget.event),
+                      ),
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.transparent,
+                    shadowColor: Colors.transparent,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(28.0),
+                    ),
+                  ),
+                  child: const Text(
+                    'Book Now',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
                   ),
                 ),
               ),

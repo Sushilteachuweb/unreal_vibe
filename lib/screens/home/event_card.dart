@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../utils/date_formatter.dart';
 
 class EventCard extends StatelessWidget {
   final String title;
@@ -10,6 +11,7 @@ class EventCard extends StatelessWidget {
   final List<String> tags;
   final bool isHorizontal;
   final VoidCallback? onTap;
+  final String? status;
 
   const EventCard({
     Key? key,
@@ -22,6 +24,7 @@ class EventCard extends StatelessWidget {
     required this.tags,
     this.isHorizontal = false,
     this.onTap,
+    this.status,
   }) : super(key: key);
 
   @override
@@ -63,7 +66,7 @@ class EventCard extends StatelessWidget {
                       fontWeight: FontWeight.w700,
                       height: 1.2,
                     ),
-                    maxLines: 1,
+                    maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 4),
@@ -167,25 +170,42 @@ class EventCard extends StatelessWidget {
               topLeft: Radius.circular(24),
               topRight: Radius.circular(24),
             ),
-            child: Image.asset(
-              imageUrl,
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) {
-                return Container(
-                  color: Colors.grey[800],
-                  child: const Center(
-                    child: Icon(
-                      Icons.image_not_supported,
-                      color: Colors.grey,
-                      size: 48,
-                    ),
+            child: imageUrl.startsWith('http')
+                ? Image.network(
+                    imageUrl,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Container(
+                        color: Colors.grey[800],
+                        child: const Center(
+                          child: Icon(
+                            Icons.image_not_supported,
+                            color: Colors.grey,
+                            size: 48,
+                          ),
+                        ),
+                      );
+                    },
+                  )
+                : Image.asset(
+                    imageUrl,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Container(
+                        color: Colors.grey[800],
+                        child: const Center(
+                          child: Icon(
+                            Icons.image_not_supported,
+                            color: Colors.grey,
+                            size: 48,
+                          ),
+                        ),
+                      );
+                    },
                   ),
-                );
-              },
-            ),
           ),
         ),
-        // Gradient overlay
+        // Gradient overlay for better text readability
         Container(
           height: isHorizontal ? double.infinity : 160,
           width: double.infinity,
@@ -198,10 +218,12 @@ class EventCard extends StatelessWidget {
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
               colors: [
-                Colors.transparent,
-                Colors.black.withOpacity(0.7),
+                Colors.black.withOpacity(0.1),
+                Colors.black.withOpacity(0.3),
+                Colors.black.withOpacity(0.6),
+                Colors.black.withOpacity(0.8),
               ],
-              stops: const [0.5, 1.0],
+              stops: const [0.0, 0.3, 0.7, 1.0],
             ),
           ),
         ),
@@ -212,81 +234,71 @@ class EventCard extends StatelessWidget {
           right: 12,
           child: Row(
             children: [
-              ...tags.take(2).map((tag) => Padding(
+              ...tags.take(2).toList().asMap().entries.map((entry) => Padding(
                 padding: const EdgeInsets.only(right: 8),
-                child: _buildTag(tag),
+                child: _buildTag(entry.value, entry.key),
               )),
             ],
           ),
         ),
-        // High Demand indicator
-        Positioned(
-          bottom: 12,
-          left: 12,
-          right: 12,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.red.withOpacity(0.9),
-                      borderRadius: BorderRadius.circular(6),
+        // Status indicator
+        if (status != null)
+          Positioned(
+            bottom: 12,
+            left: 12,
+            right: 12,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      _getStatusIcon(status!),
+                      color: _getStatusColor(status!),
+                      size: 14,
                     ),
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.local_fire_department, color: Colors.white, size: 14),
-                        SizedBox(width: 4),
-                        Text(
-                          'High Demand',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ],
+                    const SizedBox(width: 4),
+                    Text(
+                      status!,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              // Progress bar
-              ClipRRect(
-                borderRadius: BorderRadius.circular(4),
-                child: LinearProgressIndicator(
-                  value: 0.75,
-                  backgroundColor: Colors.grey[800]?.withOpacity(0.5),
-                  valueColor: const AlwaysStoppedAnimation<Color>(Colors.red),
-                  minHeight: 6,
+                  ],
                 ),
-              ),
-            ],
+                const SizedBox(height: 8),
+                // Progress bar
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: LinearProgressIndicator(
+                    value: _getProgressValue(status!),
+                    backgroundColor: Colors.grey[800]?.withOpacity(0.5),
+                    valueColor: AlwaysStoppedAnimation<Color>(_getStatusColor(status!)),
+                    minHeight: 6,
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
       ],
     );
   }
 
-  Widget _buildTag(String tag) {
+  Widget _buildTag(String tag, int index) {
+    // Standardized colors for consistent styling
     Color tagColor;
-    if (tag.toLowerCase().contains('house') || tag.toLowerCase().contains('party')) {
+    Color textColor;
+    
+    if (index == 0) {
+      // First tag: Purple background with white text
       tagColor = const Color(0xFF6958CA);
-    } else if (tag.toLowerCase().contains('age')) {
-      tagColor = const Color(0xFFFFA726);
-    } else if (tag.toLowerCase().contains('music')) {
-      tagColor = const Color(0xFF4ECDC4);
-    } else if (tag.toLowerCase().contains('festival')) {
-      tagColor = const Color(0xFF95E1D3);
-    } else if (tag.toLowerCase().contains('jazz')) {
-      tagColor = const Color(0xFFFFB347);
-    } else if (tag.toLowerCase().contains('new')) {
-      tagColor = const Color(0xFFFFB347);
+      textColor = Colors.white;
     } else {
-      tagColor = const Color(0xFF6958CA);
+      // Second tag: Orange background with black text
+      tagColor = const Color(0xFFFFA726);
+      textColor = Colors.black;
     }
 
     return Container(
@@ -297,8 +309,8 @@ class EventCard extends StatelessWidget {
       ),
       child: Text(
         tag,
-        style: const TextStyle(
-          color: Colors.white,
+        style: TextStyle(
+          color: textColor,
           fontSize: 11,
           fontWeight: FontWeight.w700,
         ),
@@ -321,7 +333,7 @@ class EventCard extends StatelessWidget {
             ),
             const SizedBox(width: 6),
             Text(
-              date,
+              DateFormatter.formatToDateAndDay(date),
               style: const TextStyle(
                 color: Colors.white70,
                 fontSize: 12,
@@ -449,5 +461,51 @@ class EventCard extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  // Helper methods for status indicators
+  IconData _getStatusIcon(String status) {
+    switch (status.toLowerCase()) {
+      case 'high demand':
+        return Icons.local_fire_department;
+      case 'filling up fast':
+        return Icons.trending_up;
+      case 'just started':
+        return Icons.play_circle_outline;
+      case 'almost full':
+        return Icons.warning_outlined;
+      default:
+        return Icons.info_outline;
+    }
+  }
+
+  Color _getStatusColor(String status) {
+    switch (status.toLowerCase()) {
+      case 'high demand':
+        return Colors.red;
+      case 'filling up fast':
+        return Colors.orange;
+      case 'just started':
+        return Colors.green;
+      case 'almost full':
+        return Colors.amber;
+      default:
+        return Colors.white;
+    }
+  }
+
+  double _getProgressValue(String status) {
+    switch (status.toLowerCase()) {
+      case 'high demand':
+        return 0.9;
+      case 'filling up fast':
+        return 0.75;
+      case 'just started':
+        return 0.2;
+      case 'almost full':
+        return 0.85;
+      default:
+        return 0.5;
+    }
   }
 }

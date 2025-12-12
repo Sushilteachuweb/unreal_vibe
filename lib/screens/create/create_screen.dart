@@ -427,9 +427,9 @@ class _CreateScreenState extends State<CreateScreen> {
       decoration: BoxDecoration(
         gradient: _isFormValid && !_isLoading
             ? const LinearGradient(
-                colors: [Color(0xFFFF1B6B), Color(0xFFAB47BC)],
-                begin: Alignment.centerLeft,
-                end: Alignment.centerRight,
+                colors: [Color(0xFFFF4081), Color(0xFFE91E63)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
               )
             : null,
         color: _isFormValid && !_isLoading ? null : const Color(0xFF2C2C2E),
@@ -492,7 +492,7 @@ class _CreateScreenState extends State<CreateScreen> {
                     userCity,
                     style: TextStyle(
                       color: Colors.white.withOpacity(0.9),
-                      fontSize: 14,
+                      fontSize: 16,
                       fontWeight: FontWeight.w500,
                     ),
                   ),

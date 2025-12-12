@@ -18,7 +18,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   late TextEditingController _nameController;
   late TextEditingController _emailController;
   late TextEditingController _cityController;
+  late TextEditingController _bioController;
+  late TextEditingController _funFactController;
   String _selectedGender = 'Male';
+  List<String> _selectedInterests = [];
   
   File? _profilePhoto;
   File? _aadhaar;
@@ -34,7 +37,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     _nameController = TextEditingController(text: user?.name ?? '');
     _emailController = TextEditingController(text: user?.email ?? '');
     _cityController = TextEditingController(text: user?.city ?? '');
+    _bioController = TextEditingController(text: ''); // Will be added to API later
+    _funFactController = TextEditingController(text: ''); // Will be added to API later
     _selectedGender = user?.gender ?? 'Male';
+    _selectedInterests = []; // Will be added to API later
   }
 
   @override
@@ -42,6 +48,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     _nameController.dispose();
     _emailController.dispose();
     _cityController.dispose();
+    _bioController.dispose();
+    _funFactController.dispose();
     super.dispose();
   }
 
@@ -234,6 +242,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               _buildTextField('City', _cityController, Icons.location_city),
               const SizedBox(height: 16),
               _buildGenderSelector(),
+              const SizedBox(height: 24),
+              // Note: Bio, Fun Facts, and Interests are UI-only for now (not connected to API)
+              _buildTextArea('Bio / About Me', _bioController, Icons.person_outline),
+              const SizedBox(height: 16),
+              _buildTextArea('Fun Fact About Me', _funFactController, Icons.emoji_emotions),
+              const SizedBox(height: 16),
+              _buildInterestsSelector(),
               const SizedBox(height: 32),
               _buildDocumentsSection(),
               const SizedBox(height: 32),
@@ -391,6 +406,104 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     );
   }
 
+  Widget _buildTextArea(String label, TextEditingController controller, IconData icon) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 8),
+        TextFormField(
+          controller: controller,
+          maxLines: 3,
+          style: const TextStyle(color: Colors.white),
+          decoration: InputDecoration(
+            prefixIcon: Icon(icon, color: const Color(0xFF6B7280)),
+            filled: true,
+            fillColor: const Color(0xFF1A1A1A),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFF2A2A2A)),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFF2A2A2A)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFFE94B8B)),
+            ),
+            hintText: 'Tell us about yourself...',
+            hintStyle: const TextStyle(color: Color(0xFF6B7280)),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildInterestsSelector() {
+    final availableInterests = [
+      'EDM', 'Techno', 'House Parties', 'Travel', 'Photography',
+      'Music', 'Dancing', 'Art', 'Sports', 'Gaming', 'Food', 'Movies'
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'My Vibe / Interests',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: availableInterests.map((interest) {
+            final isSelected = _selectedInterests.contains(interest);
+            return GestureDetector(
+              onTap: () {
+                setState(() {
+                  if (isSelected) {
+                    _selectedInterests.remove(interest);
+                  } else {
+                    _selectedInterests.add(interest);
+                  }
+                });
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(
+                  color: isSelected ? const Color(0xFF6958CA) : const Color(0xFF1A1A1A),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: isSelected ? const Color(0xFF6958CA) : const Color(0xFF2A2A2A),
+                  ),
+                ),
+                child: Text(
+                  interest,
+                  style: TextStyle(
+                    color: isSelected ? Colors.white : const Color(0xFF9CA3AF),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      ],
+    );
+  }
+
   Widget _buildDocumentsSection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -456,24 +569,39 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     return SizedBox(
       width: double.infinity,
       height: 56,
-      child: ElevatedButton(
-        onPressed: _isLoading ? null : _saveProfile,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFFE94B8B),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
+      child: Container(
+        decoration: BoxDecoration(
+          gradient: !_isLoading
+              ? const LinearGradient(
+                  colors: [Color(0xFFFF4081), Color(0xFFE91E63)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                )
+              : null,
+          color: _isLoading ? Colors.grey.withOpacity(0.3) : null,
+          borderRadius: BorderRadius.circular(28.0),
         ),
-        child: _isLoading
-            ? const CircularProgressIndicator(color: Colors.white)
-            : const Text(
-                'Save Changes',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
+        child: ElevatedButton(
+          onPressed: _isLoading ? null : _saveProfile,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.transparent,
+            shadowColor: Colors.transparent,
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(28.0),
+            ),
+          ),
+          child: _isLoading
+              ? const CircularProgressIndicator(color: Colors.white)
+              : const Text(
+                  'Save Changes',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
-              ),
+        ),
       ),
     );
   }

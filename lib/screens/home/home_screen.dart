@@ -6,6 +6,8 @@ import '../../models/event_model.dart';
 import 'event_details_screen.dart';
 import '../../utils/responsive_helper.dart';
 import '../../providers/user_provider.dart';
+import '../../providers/event_provider.dart';
+import '../../utils/api_debug.dart';
 import '../search/search_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -16,61 +18,130 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final List<Event> events = Event.getMockEvents();
   final List<String> filterTags = ['All', 'Music', 'Favorite'];
   String selectedFilter = 'All';
 
   @override
+  void initState() {
+    super.initState();
+    // Fetch events when the screen loads
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<EventProvider>().fetchEvents();
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final trendingEvents = events.where((event) => event.isTrending).toList();
-    final padding = ResponsiveHelper.getResponsivePadding(context, 16.0);
+    return Consumer<EventProvider>(
+      builder: (context, eventProvider, child) {
+        final trendingEvents = eventProvider.trendingEvents;
+        final padding = ResponsiveHelper.getResponsivePadding(context, 16.0);
+
+        return _buildHomeContent(context, eventProvider, trendingEvents, padding);
+      },
+    );
+  }
+
+  Widget _buildHomeContent(BuildContext context, EventProvider eventProvider, List<Event> trendingEvents, double padding) {
 
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: _buildAppBar(),
-      body: Center(
-        child: Container(
-          constraints: BoxConstraints(
-            maxWidth: ResponsiveHelper.getMaxContentWidth(context),
-          ),
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Padding(
-                  padding: EdgeInsets.symmetric(horizontal: padding),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const SizedBox(height: 8),
-                      _buildHeroSection(context),
-                      const SizedBox(height: 20),
-                      CustomSearchBar(
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const SearchScreen(),
+      body: eventProvider.isLoading
+          ? const Center(child: CircularProgressIndicator(color: Color(0xFF6958CA)))
+          : eventProvider.error != null
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(
+                          Icons.error_outline,
+                          color: Colors.red,
+                          size: 48,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Failed to load events',
+                          style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          eventProvider.error ?? 'Unknown error',
+                          style: TextStyle(color: Colors.grey[400], fontSize: 14),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 24),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            ElevatedButton(
+                              onPressed: () => eventProvider.fetchEvents(),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF6958CA),
+                              ),
+                              child: const Text('Retry'),
                             ),
-                          );
-                        },
+                            const SizedBox(width: 16),
+                            ElevatedButton(
+                              onPressed: () async {
+                                await ApiDebug.testApiEndpoints();
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.orange,
+                              ),
+                              child: const Text('Debug API'),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              : Center(
+                  child: Container(
+                    constraints: BoxConstraints(
+                      maxWidth: ResponsiveHelper.getMaxContentWidth(context),
+                    ),
+                    child: SingleChildScrollView(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Padding(
+                            padding: EdgeInsets.symmetric(horizontal: padding),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const SizedBox(height: 8),
+                                _buildHeroSection(context),
+                                const SizedBox(height: 20),
+                                CustomSearchBar(
+                                  onTap: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => const SearchScreen(),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 28),
+                          _buildTrendingEvents(trendingEvents, context),
+                          const SizedBox(height: 32),
+                          Padding(
+                            padding: EdgeInsets.symmetric(horizontal: padding),
+                            child: _buildAllEvents(context, eventProvider),
+                          ),
+                          const SizedBox(height: 100),
+                        ],
                       ),
-                    ],
+                    ),
                   ),
                 ),
-                const SizedBox(height: 28),
-                _buildTrendingEvents(trendingEvents, context),
-                const SizedBox(height: 32),
-                Padding(
-                  padding: EdgeInsets.symmetric(horizontal: padding),
-                  child: _buildAllEvents(context),
-                ),
-                const SizedBox(height: 100),
-              ],
-            ),
-          ),
-        ),
-      ),
     );
   }
 
@@ -101,7 +172,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     userCity,
                     style: TextStyle(
                       color: Colors.white.withOpacity(0.9),
-                      fontSize: 14,
+                      fontSize: 16,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
@@ -169,7 +240,9 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildTrendingEvents(List<Event> events, BuildContext context) {
     final padding = ResponsiveHelper.getResponsivePadding(context, 16.0);
     final isDesktop = ResponsiveHelper.isDesktop(context);
-    final cardWidth = isDesktop ? 300.0 : 240.0;
+    final screenWidth = MediaQuery.of(context).size.width;
+    // Make first card take most of the screen width with just a peek of the second card
+    final cardWidth = isDesktop ? 300.0 : screenWidth - (padding * 2) - 40; // 40px for peek of next card
     final cardHeight = isDesktop ? 340.0 : 280.0;
 
     return Column(
@@ -230,6 +303,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   imageUrl: event.imageUrl,
                   tags: event.tags,
                   isHorizontal: true,
+                  status: event.status,
                   onTap: () {
                     Navigator.push(
                       context,
@@ -247,11 +321,8 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildAllEvents(BuildContext context) {
-    final filteredEvents = selectedFilter == 'All'
-        ? events
-        : events.where((event) => event.tags.any((tag) =>
-            tag.toLowerCase().contains(selectedFilter.toLowerCase()))).toList();
+  Widget _buildAllEvents(BuildContext context, EventProvider eventProvider) {
+    final filteredEvents = eventProvider.getFilteredEvents(selectedFilter);
     
     final isDesktop = ResponsiveHelper.isDesktop(context);
     final isTablet = ResponsiveHelper.isTablet(context);
@@ -259,7 +330,9 @@ class _HomeScreenState extends State<HomeScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Header with "All Events" and "Filters"
         Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
               'All Events',
@@ -269,46 +342,63 @@ class _HomeScreenState extends State<HomeScreen> {
                 fontWeight: FontWeight.w600,
               ),
             ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: SizedBox(
-                height: 36,
-                child: ListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: filterTags.length,
-                  itemBuilder: (context, index) {
-                    final tag = filterTags[index];
-                    final isSelected = selectedFilter == tag;
-                    return GestureDetector(
-                      onTap: () {
-                        setState(() {
-                          selectedFilter = tag;
-                        });
-                      },
-                      child: Container(
-                        margin: const EdgeInsets.only(right: 8),
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: isSelected ? const Color(0xFF6958CA) : const Color(0xFF1A1A1A),
-                          borderRadius: BorderRadius.circular(18),
-                        ),
-                        child: Center(
-                          child: Text(
-                            tag,
-                            style: TextStyle(
-                              color: isSelected ? Colors.white : Colors.grey[500],
-                              fontSize: ResponsiveHelper.getResponsiveFontSize(context, 13),
-                              fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                      ),
-                    );
-                  },
+            Row(
+              children: [
+                Icon(
+                  Icons.filter_list_sharp,
+                  color: Colors.grey[400],
+                  size: 20,
                 ),
-              ),
+                const SizedBox(width: 8),
+                Text(
+                  'Filters',
+                  style: TextStyle(
+                    color: Colors.grey[400],
+                    fontSize: ResponsiveHelper.getResponsiveFontSize(context, 16),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
             ),
           ],
+        ),
+        const SizedBox(height: 16),
+        // Filter tags below the header
+        SizedBox(
+          height: 36,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            itemCount: filterTags.length,
+            itemBuilder: (context, index) {
+              final tag = filterTags[index];
+              final isSelected = selectedFilter == tag;
+              return GestureDetector(
+                onTap: () {
+                  setState(() {
+                    selectedFilter = tag;
+                  });
+                },
+                child: Container(
+                  margin: const EdgeInsets.only(right: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: isSelected ? const Color(0xFF6958CA) : const Color(0xFF1A1A1A),
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                  child: Center(
+                    child: Text(
+                      tag,
+                      style: TextStyle(
+                        color: isSelected ? Colors.white : Colors.grey[500],
+                        fontSize: ResponsiveHelper.getResponsiveFontSize(context, 13),
+                        fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
         ),
         const SizedBox(height: 16),
         isDesktop || isTablet
@@ -333,6 +423,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     imageUrl: event.imageUrl,
                     tags: event.tags,
                     isHorizontal: false,
+                    status: event.status,
                     onTap: () {
                       Navigator.push(
                         context,
@@ -362,6 +453,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       imageUrl: event.imageUrl,
                       tags: event.tags,
                       isHorizontal: false,
+                      status: event.status,
                       onTap: () {
                         Navigator.push(
                           context,

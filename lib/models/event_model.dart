@@ -8,6 +8,7 @@ class Event {
   final String imageUrl;
   final List<String> tags;
   final bool isTrending;
+  final String? status;
   final String? djName;
   final String? djImage;
   final double? rating;
@@ -38,6 +39,7 @@ class Event {
     required this.imageUrl,
     required this.tags,
     this.isTrending = false,
+    this.status,
     this.djName,
     this.djImage,
     this.rating,
@@ -59,133 +61,80 @@ class Event {
     this.hostName,
   });
 
-  static List<Event> getMockEvents() {
-    return [
-      Event(
-        id: '1',
-        title: 'Tales From The Shadows - A Halloween Story Night',
-        subtitle: 'Spooky tales and mysterious stories',
-        date: 'Oct 31, 2024',
-        location: 'Gurgaon, Mumbai',
-        coverCharge: '₹ 599',
-        imageUrl: 'assets/images/house_party.jpg',
-        tags: ['HOUSE PARTY', 'AGE: 22+'],
-        isTrending: true,
-        ageRestriction: 'For age 23 - 34 years',
-        whatsIncluded: 'Price Includes 1 Beverage, Nibbles, Experience + BYOB',
-      ),
-      Event(
-        id: '2',
-        title: 'Gala Music Festival',
-        subtitle: 'An evening of smooth jazz',
-        date: 'Nov 15, 2024',
-        location: 'Unity Square, ID',
-        coverCharge: '₹ 1299',
-        imageUrl: 'assets/images/house_party2.jpg',
-        tags: ['MUSIC', 'NEW'],
-        isTrending: true,
-      ),
-      Event(
-        id: '3',
-        title: 'Woman\'s Day Festival',
-        subtitle: 'Celebrating womanhood',
-        date: 'Mar 8, 2024',
-        location: 'City Road, ID',
-        coverCharge: '₹ 799',
-        imageUrl: 'assets/images/house_party3.jpg',
-        tags: ['FESTIVAL', 'WOMEN ONLY'],
-      ),
-      Event(
-        id: '4',
-        title: 'Bastau Music Festival',
-        subtitle: 'Electronic music extravaganza',
-        date: 'Dec 20, 2024',
-        location: 'Crowd Avenue, ID',
-        coverCharge: '₹ 999',
-        imageUrl: 'assets/images/house_party4.jpg',
-        tags: ['MUSIC', 'AGE 18+'],
-        isTrending: true,
-      ),
-      Event(
-        id: '5',
-        title: 'Summer Beats Festival',
-        subtitle: 'Dance to the rhythm',
-        date: 'Jun 21, 2024',
-        location: 'Beach Side, ID',
-        coverCharge: '₹ 1499',
-        imageUrl: 'assets/images/house_party5.jpg',
-        tags: ['FESTIVAL', 'DANCE'],
-      ),
-      Event(
-        id: '6',
-        title: 'Acoustic Night',
-        subtitle: 'Intimate musical performances',
-        date: 'Jan 10, 2024',
-        location: 'Downtown Cafe, ID',
-        coverCharge: '₹ 399',
-        imageUrl: 'assets/images/house_party.jpg',
-        tags: ['MUSIC', 'ACOUSTIC'],
-      ),
-      Event(
-        id: '7',
-        title: 'Art Gallery Opening',
-        subtitle: 'Contemporary art exhibition',
-        date: 'Feb 14, 2024',
-        location: 'Art District, ID',
-        coverCharge: '₹ 299',
-        imageUrl: 'assets/images/house_party2.jpg',
-        tags: ['ART', 'EXHIBITION'],
-      ),
-      Event(
-        id: '8',
-        title: 'Modern Art Showcase',
-        subtitle: 'Featuring local artists',
-        date: 'Mar 20, 2024',
-        location: 'Gallery Street, ID',
-        coverCharge: '₹ 399',
-        imageUrl: 'assets/images/house_party3.jpg',
-        tags: ['ART', 'NEW'],
-      ),
-      Event(
-        id: '9',
-        title: 'Cricket Championship Finals',
-        subtitle: 'Watch the finals live',
-        date: 'Apr 15, 2024',
-        location: 'Sports Arena, ID',
-        coverCharge: '₹ 1999',
-        imageUrl: 'assets/images/house_party4.jpg',
-        tags: ['SPORT', 'CRICKET'],
-      ),
-      Event(
-        id: '10',
-        title: 'Football League Match',
-        subtitle: 'Premier league showdown',
-        date: 'May 10, 2024',
-        location: 'Stadium, ID',
-        coverCharge: '₹ 1499',
-        imageUrl: 'assets/images/house_party5.jpg',
-        tags: ['SPORT', 'FOOTBALL'],
-      ),
-      Event(
-        id: '11',
-        title: 'Stand-Up Comedy Night',
-        subtitle: 'Laugh out loud with top comedians',
-        date: 'Jun 5, 2024',
-        location: 'Comedy Club, ID',
-        coverCharge: '₹ 599',
-        imageUrl: 'assets/images/house_party.jpg',
-        tags: ['COMEDY', 'AGE 18+'],
-      ),
-      Event(
-        id: '12',
-        title: 'Comedy Open Mic',
-        subtitle: 'Fresh talent showcase',
-        date: 'Jul 12, 2024',
-        location: 'Laugh Lounge, ID',
-        coverCharge: '₹ 299',
-        imageUrl: 'assets/images/house_party2.jpg',
-        tags: ['COMEDY', 'NEW'],
-      ),
-    ];
+  // Factory constructor to create Event from API JSON
+  factory Event.fromJson(Map<String, dynamic> json) {
+    // Convert categories array to tags with proper formatting
+    List<String> tags = [];
+    if (json['categories'] != null) {
+      tags = (json['categories'] as List<dynamic>)
+          .map((category) => category.toString().toUpperCase())
+          .toList();
+    }
+    
+    // Add age restriction as a tag if available
+    if (json['ageRestriction'] != null) {
+      tags.add('AGE: ${json['ageRestriction']}');
+    }
+
+    // Format date from ISO string to readable format
+    String formattedDate = json['date'] ?? '';
+    if (formattedDate.isNotEmpty) {
+      try {
+        DateTime dateTime = DateTime.parse(formattedDate);
+        List<String> months = [
+          'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+          'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+        ];
+        formattedDate = '${months[dateTime.month - 1]} ${dateTime.day}, ${dateTime.year}';
+      } catch (e) {
+        formattedDate = json['date'] ?? '';
+      }
+    }
+
+    // Generate status based on trending and other factors
+    String? status;
+    if (json['trending'] == true) {
+      status = 'High Demand';
+    }
+
+    // Build image URL - assuming the API returns relative paths
+    String imageUrl = json['eventImage'] ?? 'assets/images/house_party.jpg';
+    if (imageUrl.startsWith('/uploads/')) {
+      imageUrl = 'http://api.unrealvibe.com${imageUrl}';
+    }
+
+    return Event(
+      id: json['_id'] ?? '',
+      title: json['eventName'] ?? 'Untitled Event',
+      subtitle: null, // Not available in API
+      date: formattedDate,
+      location: json['city'] ?? json['fullAddress'] ?? 'Unknown Location',
+      coverCharge: '₹ ${json['entryFees'] ?? 0}',
+      imageUrl: imageUrl,
+      tags: tags,
+      isTrending: json['trending'] ?? false,
+      status: status,
+      djName: null, // Not available in API
+      djImage: null, // Not available in API
+      rating: null, // Not available in API
+      ratingCount: null, // Not available in API
+      time: json['time'],
+      ageRestriction: json['ageRestriction'],
+      dressCode: null, // Not available in API
+      entryFee: '₹ ${json['entryFees'] ?? 0}',
+      galleryImages: null, // Not available in API
+      aboutParty: json['about'],
+      partyFlow: json['partyFlow'],
+      thingsToKnow: null, // Not available in API
+      partyEtiquette: json['partyEtiquette'],
+      whatsIncluded: json['whatsIncluded'],
+      houseRules: json['houseRules'],
+      howItWorks: json['howItWorks'],
+      cancellationPolicy: json['cancellationPolicy'],
+      partiesHosted: json['totalEventsHosted'],
+      hostName: json['hostedBy'],
+    );
   }
+
+
 }

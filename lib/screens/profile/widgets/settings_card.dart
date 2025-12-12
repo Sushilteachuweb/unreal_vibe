@@ -9,7 +9,6 @@ class SettingsCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20),
       decoration: BoxDecoration(
         color: const Color(0xFF1A1A1A),
         borderRadius: BorderRadius.circular(16),
@@ -30,8 +29,6 @@ class SettingsCard extends StatelessWidget {
           _buildSettingsItem(context, Icons.lock, 'Privacy', () {}),
           _buildDivider(),
           _buildSettingsItem(context, Icons.notifications, 'Notifications', () {}),
-          _buildDivider(),
-          _buildSettingsItem(context, Icons.lock_clock, 'Change Password', () {}),
           _buildDivider(),
           _buildSettingsItem(
             context,
@@ -168,7 +165,6 @@ class SettingsCard extends StatelessWidget {
     return Container(
       height: 1,
       color: const Color(0xFF2A2A2A),
-      margin: const EdgeInsets.symmetric(horizontal: 20),
     );
   }
 }
