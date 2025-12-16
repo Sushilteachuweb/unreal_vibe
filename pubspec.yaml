@@ -41,6 +41,9 @@ dependencies:
   http: ^1.2.0
   http_parser: ^4.0.2
   image_picker: ^1.0.7
+  razorpay_flutter: ^1.4.0
+  video_player: ^2.7.2
+  qr_flutter: ^4.1.0
 
 dev_dependencies:
   flutter_test:
@@ -72,6 +75,8 @@ flutter:
     - assets/images/house_party3.jpg
     - assets/images/house_party4.jpg
     - assets/images/house_party5.jpg
+    - assets/images/app-icon-new.png
+    - assets/video/
 
 
 
@@ -105,6 +110,6 @@ flutter:
 flutter_launcher_icons:
   android: true
   ios: true
-  image_path: "assets/images/app-icon.jpeg"
+  image_path: "assets/images/app-icon-new.png"
   min_sdk_android: 21
   remove_alpha_ios: true

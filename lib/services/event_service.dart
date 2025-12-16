@@ -8,9 +8,9 @@ class EventService {
     // List of endpoints to try
     final endpoints = [
       ApiConfig.getEvents,
-      ApiConfig.getEventsAlt1,
-      ApiConfig.getEventsAlt2,
-      ApiConfig.getEventsAlt3,
+      // ApiConfig.getEventsAlt1,
+      // ApiConfig.getEventsAlt2,
+      // ApiConfig.getEventsAlt3,
     ];
 
     Exception? lastException;

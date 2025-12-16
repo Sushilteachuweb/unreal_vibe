@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../models/event_model.dart';
 import '../../models/ticket_model.dart';
+import '../../models/attendee_model.dart';
 import 'ticket_confirmation_screen.dart';
 
 class TicketDetailsScreen extends StatefulWidget {
@@ -117,13 +118,35 @@ class _TicketDetailsScreenState extends State<TicketDetailsScreen> {
     if (_formKey.currentState!.validate()) {
       _saveCurrentTicket();
 
+      // Convert _ticketDetails to Attendee list
+      final attendees = _ticketDetails.map((detail) {
+        final ticketType = detail['ticketType'] as TicketType;
+        return Attendee(
+          fullName: detail['name'] ?? '',
+          email: detail['email'] ?? '',
+          phone: detail['phone'] ?? '',
+          gender: detail['gender'] ?? 'Male',
+          passType: ticketType.name.replaceAll(' PASS', '').replaceAll('PASS', ''),
+        );
+      }).toList();
+
+      // Create dummy order data for compatibility
+      final dummyOrderId = 'order_${DateTime.now().millisecondsSinceEpoch}';
+      final dummyOrderResponse = {
+        'success': true,
+        'orderId': dummyOrderId,
+        'message': 'Order created via legacy flow'
+      };
+
       Navigator.push(
         context,
         MaterialPageRoute(
           builder: (context) => TicketConfirmationScreen(
             event: widget.event,
             ticketSelections: widget.ticketSelections,
-            ticketDetails: _ticketDetails,
+            attendees: attendees,
+            orderId: dummyOrderId,
+            orderResponse: dummyOrderResponse,
           ),
         ),
       );
@@ -202,6 +225,8 @@ class _TicketDetailsScreenState extends State<TicketDetailsScreen> {
                     ),
                     const SizedBox(height: 16),
                     // Show gender selector only for couple pass, display info for others
+                    // For couple passes, gender selection is required to determine 
+                    // which partner's details are being filled (male/female)
                     if (ticketType.id == 'couple')
                       _buildGenderSelector()
                     else
@@ -388,6 +413,15 @@ class _TicketDetailsScreenState extends State<TicketDetailsScreen> {
             color: Colors.white,
             fontSize: 16,
             fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 4),
+        const Text(
+          'Select gender for this attendee in the couple pass',
+          style: TextStyle(
+            color: Color(0xFF9CA3AF),
+            fontSize: 12,
+            fontStyle: FontStyle.italic,
           ),
         ),
         const SizedBox(height: 8),

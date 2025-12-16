@@ -82,6 +82,9 @@ class ProfileService {
     required String email,
     required String city,
     required String gender,
+    String? bio,
+    String? funFact,
+    List<String>? interests,
     File? aadhaar,
     File? drivingLicense,
     File? pan,
@@ -97,7 +100,7 @@ class ProfileService {
       }
 
       print("👤 Calling Complete Profile API: ${ApiConfig.completeProfile}");
-      print("👤 Request Data: {name: $name, email: $email, city: $city, gender: $gender}");
+      print("👤 Request Data: {name: $name, email: $email, city: $city, gender: $gender, bio: $bio, funFact: $funFact, interests: $interests}");
 
       var request = http.MultipartRequest(
         'PUT',
@@ -115,6 +118,20 @@ class ProfileService {
       request.fields['email'] = email;
       request.fields['city'] = city;
       request.fields['gender'] = gender;
+      
+      // Add optional text fields
+      if (bio != null && bio.isNotEmpty) {
+        request.fields['bio'] = bio;
+      }
+      
+      if (funFact != null && funFact.isNotEmpty) {
+        request.fields['funFact'] = funFact;
+      }
+      
+      // Add interests as JSON array string
+      if (interests != null && interests.isNotEmpty) {
+        request.fields['interests'] = jsonEncode(interests);
+      }
 
       // Add file fields with explicit content type
       if (aadhaar != null) {

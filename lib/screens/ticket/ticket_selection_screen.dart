@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../models/event_model.dart';
 import '../../models/ticket_model.dart';
-import 'ticket_details_screen.dart';
+import '../../services/ticket_service.dart';
+import 'attendee_details_screen.dart';
 
 class TicketSelectionScreen extends StatefulWidget {
   final Event event;
@@ -17,13 +18,82 @@ class TicketSelectionScreen extends StatefulWidget {
 
 class _TicketSelectionScreenState extends State<TicketSelectionScreen> {
   final List<TicketSelection> _ticketSelections = [];
+  bool _isLoading = false;
 
   @override
   void initState() {
     super.initState();
-    // Initialize ticket selections
-    for (var ticketType in TicketType.getTicketTypes()) {
-      _ticketSelections.add(TicketSelection(ticketType: ticketType));
+    _initializeTickets();
+  }
+
+  void _initializeTickets() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      List<TicketType> ticketTypes;
+      
+      // Try to fetch fresh passes data from API
+      final apiTickets = await TicketService.fetchEventPasses(widget.event.id);
+      
+      if (apiTickets.isNotEmpty) {
+        // Update the description for API tickets with event's whatsIncludedInTicket
+        ticketTypes = apiTickets.map((ticket) {
+          return TicketType(
+            id: ticket.id,
+            name: ticket.name,
+            price: ticket.price,
+            description: widget.event.whatsIncludedInTicket ?? ticket.description,
+            includes: [widget.event.whatsIncludedInTicket ?? ticket.description],
+            totalQuantity: ticket.totalQuantity,
+            remainingQuantity: ticket.remainingQuantity,
+          );
+        }).toList();
+      } else if (widget.event.passes != null && widget.event.passes!.isNotEmpty) {
+        // Use passes from event data
+        ticketTypes = widget.event.passes!.map((pass) {
+          return TicketType.fromPass(pass, widget.event.whatsIncludedInTicket);
+        }).toList();
+      } else {
+        // Fallback to default ticket types
+        ticketTypes = TicketType.getTicketTypes();
+      }
+      
+      for (var ticketType in ticketTypes) {
+        _ticketSelections.add(TicketSelection(ticketType: ticketType));
+      }
+    } catch (e) {
+      print('Error initializing tickets: $e');
+      // Use event passes or fallback
+      List<TicketType> ticketTypes;
+      
+      if (widget.event.passes != null && widget.event.passes!.isNotEmpty) {
+        ticketTypes = widget.event.passes!.map((pass) {
+          return TicketType.fromPass(pass, widget.event.whatsIncludedInTicket);
+        }).toList();
+      } else {
+        // Update default tickets with event's whatsIncludedInTicket
+        ticketTypes = TicketType.getTicketTypes().map((ticket) {
+          return TicketType(
+            id: ticket.id,
+            name: ticket.name,
+            price: ticket.price,
+            description: widget.event.whatsIncludedInTicket ?? ticket.description,
+            includes: [widget.event.whatsIncludedInTicket ?? ticket.description],
+            totalQuantity: ticket.totalQuantity,
+            remainingQuantity: ticket.remainingQuantity,
+          );
+        }).toList();
+      }
+      
+      for (var ticketType in ticketTypes) {
+        _ticketSelections.add(TicketSelection(ticketType: ticketType));
+      }
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
     }
   }
 
@@ -36,9 +106,22 @@ class _TicketSelectionScreenState extends State<TicketSelectionScreen> {
   }
 
   void _incrementTicket(int index) {
-    setState(() {
-      _ticketSelections[index].quantity++;
-    });
+    final selection = _ticketSelections[index];
+    final remainingQuantity = selection.ticketType.remainingQuantity;
+    
+    // Check if we can add more tickets
+    if (remainingQuantity == null || selection.quantity < remainingQuantity) {
+      setState(() {
+        _ticketSelections[index].quantity++;
+      });
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Only $remainingQuantity tickets available for ${selection.ticketType.name}'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+    }
   }
 
   void _decrementTicket(int index) {
@@ -68,7 +151,7 @@ class _TicketSelectionScreenState extends State<TicketSelectionScreen> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => TicketDetailsScreen(
+        builder: (context) => AttendeeDetailsScreen(
           event: widget.event,
           ticketSelections: selectedTickets,
         ),
@@ -95,42 +178,51 @@ class _TicketSelectionScreenState extends State<TicketSelectionScreen> {
           ),
         ),
       ),
-      body: Column(
-        children: [
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Ticket Packages',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 24,
-                      fontWeight: FontWeight.w700,
+      body: _isLoading
+          ? const Center(
+              child: CircularProgressIndicator(
+                color: Color(0xFF6958CA),
+              ),
+            )
+          : Column(
+              children: [
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Ticket Packages',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 24,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        ..._ticketSelections.asMap().entries.map((entry) {
+                          final index = entry.key;
+                          final selection = entry.value;
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 16),
+                            child: _buildTicketCard(selection, index),
+                          );
+                        }).toList(),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 24),
-                  ..._ticketSelections.asMap().entries.map((entry) {
-                    final index = entry.key;
-                    final selection = entry.value;
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 16),
-                      child: _buildTicketCard(selection, index),
-                    );
-                  }).toList(),
-                ],
-              ),
+                ),
+                if (_totalTickets > 0) _buildBottomBar(),
+              ],
             ),
-          ),
-          if (_totalTickets > 0) _buildBottomBar(),
-        ],
-      ),
     );
   }
 
   Widget _buildTicketCard(TicketSelection selection, int index) {
+    final isAvailable = selection.ticketType.remainingQuantity == null || 
+                       selection.ticketType.remainingQuantity! > 0;
+    
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -149,18 +241,38 @@ class _TicketSelectionScreenState extends State<TicketSelectionScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                selection.ticketType.name,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      selection.ticketType.name,
+                      style: TextStyle(
+                        color: isAvailable ? Colors.white : Colors.grey,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    if (selection.ticketType.remainingQuantity != null) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        '${selection.ticketType.remainingQuantity} left',
+                        style: TextStyle(
+                          color: selection.ticketType.remainingQuantity! > 10 
+                              ? Colors.green 
+                              : Colors.orange,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ),
               Text(
                 '₹${selection.ticketType.price.toInt()}',
-                style: const TextStyle(
-                  color: Color(0xFFFFA726),
+                style: TextStyle(
+                  color: isAvailable ? const Color(0xFFFFA726) : Colors.grey,
                   fontSize: 24,
                   fontWeight: FontWeight.w700,
                 ),
@@ -203,15 +315,21 @@ class _TicketSelectionScreenState extends State<TicketSelectionScreen> {
                   child: Container(
                     height: 56.0,
                     decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFFFF4081), Color(0xFFE91E63)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
+                      gradient: isAvailable 
+                          ? const LinearGradient(
+                              colors: [Color(0xFFFF4081), Color(0xFFE91E63)],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            )
+                          : LinearGradient(
+                              colors: [Colors.grey.shade600, Colors.grey.shade700],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
                       borderRadius: BorderRadius.circular(28.0),
                     ),
                     child: ElevatedButton(
-                      onPressed: () => _incrementTicket(index),
+                      onPressed: isAvailable ? () => _incrementTicket(index) : null,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.transparent,
                         shadowColor: Colors.transparent,
@@ -220,9 +338,9 @@ class _TicketSelectionScreenState extends State<TicketSelectionScreen> {
                           borderRadius: BorderRadius.circular(28.0),
                         ),
                       ),
-                      child: const Text(
-                        'Book Now!',
-                        style: TextStyle(
+                      child: Text(
+                        isAvailable ? 'Book Now!' : 'Sold Out',
+                        style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
                           color: Colors.white,
@@ -254,8 +372,8 @@ class _TicketSelectionScreenState extends State<TicketSelectionScreen> {
                           ),
                         ),
                         IconButton(
-                          onPressed: () => _incrementTicket(index),
-                          icon: const Icon(Icons.add, color: Colors.white),
+                          onPressed: isAvailable ? () => _incrementTicket(index) : null,
+                          icon: Icon(Icons.add, color: isAvailable ? Colors.white : Colors.grey),
                         ),
                       ],
                     ),

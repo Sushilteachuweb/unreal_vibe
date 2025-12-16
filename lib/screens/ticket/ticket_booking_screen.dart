@@ -6,9 +6,10 @@ import '../../screens/home/bottom_navigation.dart';
 import '../../screens/home/home_screen.dart';
 import '../../screens/explore/explore_screen.dart';
 import '../../screens/create/create_screen.dart';
-import '../../screens/ticket/tickets_screen.dart';
+import '../../screens/ticket/my_tickets_screen.dart';
 import '../../screens/profile/profile_screen.dart';
-import 'payment_gateway_screen.dart';
+import 'simplified_payment_gateway_screen.dart';
+import '../../widgets/skeleton_loading.dart';
 
 class TicketBookingScreen extends StatefulWidget {
   final Event event;
@@ -567,7 +568,7 @@ class _TicketBookingScreenState extends State<TicketBookingScreen> {
           case 3: // Tickets
             Navigator.pushAndRemoveUntil(
               context,
-              MaterialPageRoute(builder: (context) => const TicketsScreen()),
+              MaterialPageRoute(builder: (context) => const MyTicketsScreen()),
               (route) => false,
             );
             break;
@@ -632,7 +633,7 @@ class _TicketBookingScreenState extends State<TicketBookingScreen> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => PaymentGatewayScreen(
+        builder: (context) => SimplifiedPaymentGatewayScreen(
           totalAmount: _total,
           eventName: widget.event.title,
           ticketCount: _ticketCount,

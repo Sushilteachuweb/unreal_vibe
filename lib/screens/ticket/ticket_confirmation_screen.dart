@@ -1,22 +1,51 @@
 import 'package:flutter/material.dart';
 import '../../models/event_model.dart';
 import '../../models/ticket_model.dart';
-import 'payment_gateway_screen.dart';
+import '../../models/attendee_model.dart';
+import '../../models/purchased_ticket_model.dart';
+import '../../services/dummy_razorpay_service.dart';
+import '../../services/ticket_service.dart';
+import 'payment_success_screen.dart';
 
-class TicketConfirmationScreen extends StatelessWidget {
+class TicketConfirmationScreen extends StatefulWidget {
   final Event event;
   final List<TicketSelection> ticketSelections;
-  final List<Map<String, dynamic>> ticketDetails;
+  final List<Attendee> attendees;
+  final String orderId;
+  final Map<String, dynamic> orderResponse;
 
   const TicketConfirmationScreen({
     Key? key,
     required this.event,
     required this.ticketSelections,
-    required this.ticketDetails,
+    required this.attendees,
+    required this.orderId,
+    required this.orderResponse,
   }) : super(key: key);
 
+  @override
+  State<TicketConfirmationScreen> createState() => _TicketConfirmationScreenState();
+}
+
+class _TicketConfirmationScreenState extends State<TicketConfirmationScreen> {
+  final DummyRazorpayService _razorpayService = DummyRazorpayService();
+  bool _isProcessingPayment = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeRazorpay();
+  }
+
+  void _initializeRazorpay() {
+    _razorpayService.initialize(
+      onPaymentSuccess: _handlePaymentSuccess,
+      onPaymentError: _handlePaymentError,
+    );
+  }
+
   double get _subtotal {
-    return ticketSelections.fold(
+    return widget.ticketSelections.fold(
       0.0,
       (sum, selection) => sum + selection.totalPrice,
     );
@@ -24,6 +53,185 @@ class TicketConfirmationScreen extends StatelessWidget {
 
   double get _taxAmount => _subtotal * 0.10; // 10% tax
   double get _total => _subtotal + _taxAmount;
+
+  void _proceedToPayment() {
+    // Get first attendee details for payment
+    final firstAttendee = widget.attendees.first;
+    
+    // Open Razorpay checkout
+    _razorpayService.openCheckout(
+      context: context,
+      amount: _total,
+      name: firstAttendee.fullName,
+      email: firstAttendee.email,
+      contact: firstAttendee.phone,
+      description: 'Ticket booking for ${widget.event.title}',
+    );
+  }
+
+  void _handlePaymentSuccess(DummyPaymentSuccessResponse response) async {
+    try {
+      // Show loading
+      _showLoadingDialog('Verifying payment...');
+
+      // Prepare selected tickets data with price
+      final selectedTickets = widget.ticketSelections.map((selection) => {
+        'type': _formatTicketType(selection.ticketType.name),
+        'price': selection.ticketType.price.toInt(),
+        'quantity': selection.quantity,
+      }).toList();
+
+      // Prepare attendees data
+      final attendeesData = widget.attendees.map((attendee) => attendee.toJson()).toList();
+
+      // Verify payment with backend
+      final verificationResponse = await TicketService.verifyPayment(
+        eventId: widget.event.id,
+        orderId: widget.orderId,
+        razorpayPaymentId: response.paymentId,
+        razorpaySignature: response.signature,
+        selectedTickets: selectedTickets,
+        attendees: attendeesData,
+      );
+
+      // Hide loading
+      if (mounted) Navigator.of(context).pop();
+
+      // Handle successful verification
+      if (mounted) {
+        _navigateToSuccessScreen(verificationResponse);
+      }
+    } catch (e) {
+      // Hide loading
+      if (mounted) Navigator.of(context).pop();
+      
+      _showErrorMessage('Payment verification failed: $e');
+    }
+  }
+
+  void _handlePaymentError(DummyPaymentFailureResponse response) {
+    _showErrorMessage('Payment failed: ${response.message}');
+  }
+
+  void _showLoadingDialog(String message) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF1A1A1A),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const CircularProgressIndicator(color: Color(0xFF6958CA)),
+            const SizedBox(height: 16),
+            Text(
+              message,
+              style: const TextStyle(color: Colors.white),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _navigateToSuccessScreen(Map<String, dynamic> verificationResponse) {
+    try {
+      final bookingResponse = BookingResponse.fromJson(verificationResponse);
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => PaymentSuccessScreen(
+            event: widget.event,
+            bookingResponse: bookingResponse,
+          ),
+        ),
+      );
+    } catch (e) {
+      print('Error parsing booking response: $e');
+      // Fallback to simple success dialog
+      _showSuccessDialog(verificationResponse);
+    }
+  }
+
+  void _showSuccessDialog(Map<String, dynamic> verificationResponse) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF1A1A1A),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.check_circle,
+              color: Color(0xFF10B981),
+              size: 64,
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Payment Successful!',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Your tickets have been confirmed.',
+              style: TextStyle(
+                color: Color(0xFF9CA3AF),
+                fontSize: 14,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: () {
+                // Navigate back to home
+                Navigator.of(context).pushNamedAndRemoveUntil(
+                  '/main',
+                  (route) => false,
+                  arguments: 0, // Home tab index
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF10B981),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: const Text('Done'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showErrorMessage(String message) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  String _formatTicketType(String ticketTypeName) {
+    return ticketTypeName
+        .replaceAll(' PASS', '')
+        .replaceAll('PASS', '')
+        .toLowerCase()
+        .split(' ')
+        .map((word) => word.isNotEmpty ? word[0].toUpperCase() + word.substring(1).toLowerCase() : '')
+        .join(' ')
+        .trim();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -82,7 +290,7 @@ class TicketConfirmationScreen extends StatelessWidget {
           ClipRRect(
             borderRadius: BorderRadius.circular(12),
             child: Image.asset(
-              event.imageUrl,
+              widget.event.imageUrl,
               width: 80,
               height: 80,
               fit: BoxFit.cover,
@@ -102,7 +310,7 @@ class TicketConfirmationScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  event.title,
+                  widget.event.title,
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 16,
@@ -121,7 +329,7 @@ class TicketConfirmationScreen extends StatelessWidget {
                     ),
                     const SizedBox(width: 4),
                     Text(
-                      event.date,
+                      widget.event.date,
                       style: const TextStyle(
                         color: Color(0xFF9CA3AF),
                         fontSize: 14,
@@ -140,7 +348,7 @@ class TicketConfirmationScreen extends StatelessWidget {
                     const SizedBox(width: 4),
                     Expanded(
                       child: Text(
-                        event.location,
+                        widget.event.location,
                         style: const TextStyle(
                           color: Color(0xFF9CA3AF),
                           fontSize: 14,
@@ -179,7 +387,7 @@ class TicketConfirmationScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
-          ...ticketSelections.map((selection) {
+          ...widget.ticketSelections.map((selection) {
             return Padding(
               padding: const EdgeInsets.only(bottom: 12),
               child: Row(
@@ -222,18 +430,38 @@ class TicketConfirmationScreen extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Attendees',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
-            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Attendees',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF10B981).withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  'Order: ${widget.orderId.substring(0, 12)}...',
+                  style: const TextStyle(
+                    color: Color(0xFF10B981),
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 16),
-          ...ticketDetails.asMap().entries.map((entry) {
-            final detail = entry.value;
-            final ticketType = detail['ticketType'] as TicketType;
+          ...widget.attendees.asMap().entries.map((entry) {
+            final index = entry.key;
+            final attendee = entry.value;
 
             return Container(
               margin: const EdgeInsets.only(bottom: 12),
@@ -258,7 +486,7 @@ class TicketConfirmationScreen extends StatelessWidget {
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
-                          ticketType.name,
+                          '${attendee.passType} Pass',
                           style: const TextStyle(
                             color: Color(0xFF8B5CF6),
                             fontSize: 12,
@@ -266,16 +494,24 @@ class TicketConfirmationScreen extends StatelessWidget {
                           ),
                         ),
                       ),
+                      const Spacer(),
+                      Text(
+                        'Attendee ${index + 1}',
+                        style: const TextStyle(
+                          color: Color(0xFF6B7280),
+                          fontSize: 12,
+                        ),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 12),
-                  _buildDetailRow(Icons.person, detail['name']),
+                  _buildDetailRow(Icons.person, attendee.fullName),
                   const SizedBox(height: 8),
-                  _buildDetailRow(Icons.email, detail['email']),
+                  _buildDetailRow(Icons.email, attendee.email),
                   const SizedBox(height: 8),
-                  _buildDetailRow(Icons.phone, detail['phone']),
+                  _buildDetailRow(Icons.phone, attendee.phone),
                   const SizedBox(height: 8),
-                  _buildDetailRow(Icons.wc, detail['gender']),
+                  _buildDetailRow(Icons.wc, attendee.gender),
                 ],
               ),
             );
@@ -378,53 +614,76 @@ class TicketConfirmationScreen extends StatelessWidget {
         ),
       ),
       child: SafeArea(
-        child: ElevatedButton(
-          onPressed: () {
-            // Get first attendee details for payment
-            final firstAttendee = ticketDetails.first;
-            
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => PaymentGatewayScreen(
-                  totalAmount: _total,
-                  eventName: event.title,
-                  ticketCount: ticketDetails.length,
-                  userName: firstAttendee['name'],
-                  userEmail: firstAttendee['email'],
-                  whatsappNumber: firstAttendee['phone'],
-                ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Order Status
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              margin: const EdgeInsets.only(bottom: 16),
+              decoration: BoxDecoration(
+                color: const Color(0xFF10B981).withOpacity(0.15),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xFF10B981).withOpacity(0.3)),
               ),
-            );
-          },
-          style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF8B5CF6),
-            foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
+              child: Row(
+                children: [
+                  const Icon(Icons.check_circle, color: Color(0xFF10B981), size: 20),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'Order Created Successfully',
+                    style: TextStyle(
+                      color: Color(0xFF10B981),
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const Spacer(),
+                  Text(
+                    'ID: ${widget.orderId.substring(widget.orderId.length - 8)}',
+                    style: const TextStyle(
+                      color: Color(0xFF10B981),
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Text(
-                'Proceed to Payment',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
+            
+            // Payment Button
+            ElevatedButton(
+              onPressed: _isProcessingPayment ? null : _proceedToPayment,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF8B5CF6),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              const SizedBox(width: 8),
-              Text(
-                '₹${_total.toInt()}',
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text(
+                    'Proceed to Payment',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    '₹${_total.toInt()}',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

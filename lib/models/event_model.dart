@@ -1,77 +1,201 @@
+class EventHost {
+  final String id;
+  final String role;
+  final String name;
+  final int eventsHosted;
+
+  EventHost({
+    required this.id,
+    required this.role,
+    required this.name,
+    required this.eventsHosted,
+  });
+
+  factory EventHost.fromJson(Map<String, dynamic> json) {
+    return EventHost(
+      id: json['_id'] ?? '',
+      role: json['role'] ?? 'host',
+      name: json['name'] ?? 'Unknown Host',
+      eventsHosted: json['eventsHosted'] ?? 0,
+    );
+  }
+}
+
+class EventLocation {
+  final String type;
+  final List<double> coordinates;
+
+  EventLocation({
+    required this.type,
+    required this.coordinates,
+  });
+
+  factory EventLocation.fromJson(Map<String, dynamic> json) {
+    return EventLocation(
+      type: json['type'] ?? 'Point',
+      coordinates: List<double>.from(json['coordinates'] ?? [0.0, 0.0]),
+    );
+  }
+}
+
+class TicketPass {
+  final String id;
+  final String type;
+  final double price;
+  final int totalQuantity;
+  final int remainingQuantity;
+
+  TicketPass({
+    required this.id,
+    required this.type,
+    required this.price,
+    required this.totalQuantity,
+    required this.remainingQuantity,
+  });
+
+  factory TicketPass.fromJson(Map<String, dynamic> json) {
+    return TicketPass(
+      id: json['_id'] ?? '',
+      type: json['type'] ?? '',
+      price: (json['price'] ?? 0).toDouble(),
+      totalQuantity: json['totalQuantity'] ?? 0,
+      remainingQuantity: json['remainingQuantity'] ?? 0,
+    );
+  }
+}
+
 class Event {
   final String id;
   final String title;
   final String? subtitle;
   final String date;
+  final String? day;
+  final DateTime? eventDateTime;
   final String location;
+  final String fullAddress;
+  final String city;
   final String coverCharge;
   final String imageUrl;
   final List<String> tags;
   final bool isTrending;
   final String? status;
-  final String? djName;
-  final String? djImage;
-  final double? rating;
-  final int? ratingCount;
   final String? time;
   final String? ageRestriction;
-  final String? dressCode;
+  final String? genderPreference;
   final String? entryFee;
-  final List<String>? galleryImages;
   final String? aboutParty;
   final String? partyFlow;
   final String? thingsToKnow;
+  final String? partyTerms;
   final String? partyEtiquette;
   final String? whatsIncluded;
   final String? houseRules;
   final String? howItWorks;
   final String? cancellationPolicy;
-  final int? partiesHosted;
+  final EventHost? hostInfo;
   final String? hostName;
+  final EventLocation? eventLocation;
+  final int? maxCapacity;
+  final int currentBookings;
+  final List<String>? categories;
+  // New fields from API
+  final String? whatsIncludedInTicket;
+  final String? expectedGuestCount;
+  final String? maleToFemaleRatio;
+  final List<TicketPass>? passes;
+  // Legacy fields for backward compatibility
+  final String? djName;
+  final String? djImage;
+  final double? rating;
+  final int? ratingCount;
+  final int? partiesHosted;
+  final String? maleTicketPrice;
+  final String? femaleTicketPrice;
+  final String? coupleTicketPrice;
 
   Event({
     required this.id,
     required this.title,
     this.subtitle,
     required this.date,
+    this.day,
+    this.eventDateTime,
     required this.location,
+    required this.fullAddress,
+    required this.city,
     required this.coverCharge,
     required this.imageUrl,
     required this.tags,
     this.isTrending = false,
     this.status,
-    this.djName,
-    this.djImage,
-    this.rating,
-    this.ratingCount,
     this.time,
     this.ageRestriction,
-    this.dressCode,
+    this.genderPreference,
     this.entryFee,
-    this.galleryImages,
     this.aboutParty,
     this.partyFlow,
     this.thingsToKnow,
+    this.partyTerms,
     this.partyEtiquette,
     this.whatsIncluded,
     this.houseRules,
     this.howItWorks,
     this.cancellationPolicy,
-    this.partiesHosted,
+    this.hostInfo,
     this.hostName,
+    this.eventLocation,
+    this.maxCapacity,
+    this.currentBookings = 0,
+    this.categories,
+    // New fields from API
+    this.whatsIncludedInTicket,
+    this.expectedGuestCount,
+    this.maleToFemaleRatio,
+    this.passes,
+    // Legacy fields for backward compatibility
+    this.djName,
+    this.djImage,
+    this.rating,
+    this.ratingCount,
+    this.partiesHosted,
+    this.maleTicketPrice,
+    this.femaleTicketPrice,
+    this.coupleTicketPrice,
   });
 
   // Factory constructor to create Event from API JSON
   factory Event.fromJson(Map<String, dynamic> json) {
-    // Convert categories array to tags with proper formatting
+    // Convert categories to tags with proper formatting
     List<String> tags = [];
+    
+    // Handle both array format (old) and string format (new)
     if (json['categories'] != null) {
-      tags = (json['categories'] as List<dynamic>)
-          .map((category) => category.toString().toUpperCase())
-          .toList();
+      if (json['categories'] is List) {
+        // Old format: array of categories
+        tags = (json['categories'] as List<dynamic>)
+            .map((category) => category.toString().toUpperCase())
+            .toList();
+      } else if (json['categories'] is String) {
+        // New format: comma-separated string
+        tags = (json['categories'] as String)
+            .split(',')
+            .map((category) => category.trim().toUpperCase())
+            .where((category) => category.isNotEmpty)
+            .toList();
+      }
     }
     
-    // Add age restriction as a tag if available
+    // Handle category field (string format)
+    if (json['category'] != null && json['category'] is String) {
+      final categoryTags = (json['category'] as String)
+          .split(',')
+          .map((category) => category.trim().toUpperCase())
+          .where((category) => category.isNotEmpty)
+          .toList();
+      tags.addAll(categoryTags);
+    }
+    
+    // Add age restriction as a tag if available (will be styled in yellow)
     if (json['ageRestriction'] != null) {
       tags.add('AGE: ${json['ageRestriction']}');
     }
@@ -91,48 +215,96 @@ class Event {
       }
     }
 
-    // Generate status based on trending and other factors
-    String? status;
-    if (json['trending'] == true) {
-      status = 'High Demand';
+    // Parse event date time
+    DateTime? eventDateTime;
+    if (json['eventDateTime'] != null) {
+      try {
+        eventDateTime = DateTime.parse(json['eventDateTime']);
+      } catch (e) {
+        eventDateTime = null;
+      }
+    }
+
+    // Parse host information
+    EventHost? hostInfo;
+    if (json['hostId'] != null) {
+      hostInfo = EventHost.fromJson(json['hostId']);
+    }
+
+    // Parse location information
+    EventLocation? eventLocation;
+    if (json['location'] != null) {
+      eventLocation = EventLocation.fromJson(json['location']);
     }
 
     // Build image URL - assuming the API returns relative paths
     String imageUrl = json['eventImage'] ?? 'assets/images/house_party.jpg';
     if (imageUrl.startsWith('/uploads/')) {
-      imageUrl = 'http://api.unrealvibe.com${imageUrl}';
+      imageUrl = 'http://api.unrealvibe.com$imageUrl';
+    }
+
+    // Parse categories
+    List<String>? categories;
+    if (json['categories'] != null) {
+      categories = List<String>.from(json['categories']);
+    }
+
+    // Parse passes
+    List<TicketPass>? passes;
+    if (json['passes'] != null) {
+      passes = (json['passes'] as List)
+          .map((pass) => TicketPass.fromJson(pass))
+          .toList();
     }
 
     return Event(
-      id: json['_id'] ?? '',
+      id: json['_id'] ?? json['id'] ?? '',
       title: json['eventName'] ?? 'Untitled Event',
-      subtitle: null, // Not available in API
+      subtitle: json['subtitle'],
       date: formattedDate,
-      location: json['city'] ?? json['fullAddress'] ?? 'Unknown Location',
+      day: json['day'],
+      eventDateTime: eventDateTime,
+      location: json['city'] ?? 'Unknown Location',
+      fullAddress: json['fullAddress'] ?? '',
+      city: json['city'] ?? '',
       coverCharge: '₹ ${json['entryFees'] ?? 0}',
       imageUrl: imageUrl,
       tags: tags,
       isTrending: json['trending'] ?? false,
-      status: status,
-      djName: null, // Not available in API
-      djImage: null, // Not available in API
-      rating: null, // Not available in API
-      ratingCount: null, // Not available in API
+      status: json['status'],
       time: json['time'],
       ageRestriction: json['ageRestriction'],
-      dressCode: null, // Not available in API
+      genderPreference: json['genderPreference'],
       entryFee: '₹ ${json['entryFees'] ?? 0}',
-      galleryImages: null, // Not available in API
       aboutParty: json['about'],
       partyFlow: json['partyFlow'],
-      thingsToKnow: null, // Not available in API
+      thingsToKnow: json['thingsToKnow'],
+      partyTerms: json['partyTerms'],
       partyEtiquette: json['partyEtiquette'],
       whatsIncluded: json['whatsIncluded'],
       houseRules: json['houseRules'],
       howItWorks: json['howItWorks'],
       cancellationPolicy: json['cancellationPolicy'],
-      partiesHosted: json['totalEventsHosted'],
+      hostInfo: hostInfo,
       hostName: json['hostedBy'],
+      eventLocation: eventLocation,
+      maxCapacity: json['maxCapacity'],
+      currentBookings: json['currentBookings'] ?? 0,
+      categories: categories,
+      // New fields from API
+      whatsIncludedInTicket: json['whatsIncludedInTicket'],
+      expectedGuestCount: json['expectedGuestCount'],
+      maleToFemaleRatio: json['maleToFemaleRatio'],
+      passes: passes,
+      // Legacy fields for backward compatibility
+      djName: null, // Not available in new API
+      djImage: null, // Not available in new API
+      rating: null, // Not available in new API
+      ratingCount: null, // Not available in new API
+      partiesHosted: hostInfo?.eventsHosted ?? json['totalEventsHosted'],
+      maleTicketPrice: json['maleTicketPrice'] ?? '₹ 1500',
+      femaleTicketPrice: json['femaleTicketPrice'] ?? '₹ 1200',
+      coupleTicketPrice: json['coupleTicketPrice'] ?? '₹ 2500',
     );
   }
 

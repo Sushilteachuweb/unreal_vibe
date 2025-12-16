@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'screens/auth/splash_screen.dart';
 import 'providers/user_provider.dart';
 import 'providers/event_provider.dart';
+import 'providers/payment_provider.dart';
 import 'navigation/main_navigation.dart';
 
 void main() {
@@ -11,6 +12,7 @@ void main() {
       providers: [
         ChangeNotifierProvider(create: (_) => UserProvider()),
         ChangeNotifierProvider(create: (_) => EventProvider()),
+        ChangeNotifierProvider(create: (_) => PaymentProvider()),
       ],
       child: const MyApp(),
     ),

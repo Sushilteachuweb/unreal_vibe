@@ -234,7 +234,7 @@ class EventCard extends StatelessWidget {
           right: 12,
           child: Row(
             children: [
-              ...tags.take(2).toList().asMap().entries.map((entry) => Padding(
+              ..._getPriorityTags().asMap().entries.map((entry) => Padding(
                 padding: const EdgeInsets.only(right: 8),
                 child: _buildTag(entry.value, entry.key),
               )),
@@ -287,18 +287,27 @@ class EventCard extends StatelessWidget {
   }
 
   Widget _buildTag(String tag, int index) {
-    // Standardized colors for consistent styling
+    // Color-code tags based on content type
     Color tagColor;
     Color textColor;
     
-    if (index == 0) {
-      // First tag: Purple background with white text
-      tagColor = const Color(0xFF6958CA);
+    if (tag.startsWith('AGE:')) {
+      // Age restriction tags: Yellow background with black text
+      tagColor = const Color(0xFFFFA726); // Yellow/Orange
+      textColor = Colors.black;
+    } else if (_isCategoryTag(tag)) {
+      // Category tags: Purple background with white text
+      tagColor = const Color(0xFF6958CA); // Purple
       textColor = Colors.white;
     } else {
-      // Second tag: Orange background with black text
-      tagColor = const Color(0xFFFFA726);
-      textColor = Colors.black;
+      // Other tags: Use index-based coloring as fallback
+      if (index == 0) {
+        tagColor = const Color(0xFF6958CA); // Purple
+        textColor = Colors.white;
+      } else {
+        tagColor = const Color(0xFFFFA726); // Yellow/Orange
+        textColor = Colors.black;
+      }
     }
 
     return Container(
@@ -316,6 +325,46 @@ class EventCard extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  bool _isCategoryTag(String tag) {
+    // List of common category keywords
+    const categories = [
+      'MUSIC', 'FESTIVAL', 'COMEDY', 'DANCE', 'PARTY', 'CONCERT',
+      'STANDUP', 'DJ', 'LIVE', 'CLUB', 'NIGHTLIFE', 'ENTERTAINMENT',
+      'CULTURAL', 'FOOD', 'DRINKS', 'SOCIAL', 'NETWORKING'
+    ];
+    
+    return categories.any((category) => tag.toUpperCase().contains(category));
+  }
+
+  List<String> _getPriorityTags() {
+    List<String> priorityTags = [];
+    
+    // First priority: Categories (purple)
+    final categoryTags = tags.where((tag) => _isCategoryTag(tag) && !tag.startsWith('AGE:')).toList();
+    if (categoryTags.isNotEmpty) {
+      priorityTags.add(categoryTags.first);
+    }
+    
+    // Second priority: Age restriction (yellow)
+    final ageTags = tags.where((tag) => tag.startsWith('AGE:')).toList();
+    if (ageTags.isNotEmpty) {
+      priorityTags.add(ageTags.first);
+    }
+    
+    // If we don't have enough priority tags, fill with other tags
+    if (priorityTags.length < 2) {
+      final otherTags = tags.where((tag) => 
+        !tag.startsWith('AGE:') && 
+        !_isCategoryTag(tag)
+      ).toList();
+      
+      final needed = 2 - priorityTags.length;
+      priorityTags.addAll(otherTags.take(needed));
+    }
+    
+    return priorityTags.take(2).toList();
   }
 
   Widget _buildEventDetails() {

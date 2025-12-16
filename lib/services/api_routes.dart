@@ -1,6 +1,6 @@
 class ApiConfig {
   // Base URL
-  static const String baseUrl = "http://api.unrealvibe.com/api";
+  static const String baseUrl = "https://api.unrealvibe.com/api";
   
   // Auth endpoints
   static const String requestOtp = "$baseUrl/auth/request-otp";
@@ -13,15 +13,16 @@ class ApiConfig {
   static const String completeProfile = "$baseUrl/user/complete-profile";
   static const String getProfile = "$baseUrl/user/get-profile";
   static const String profile = "$baseUrl/user/profile";
-  static const String updateProfile = "$baseUrl/user/update-profile";
   
   // Event endpoints
-  static const String getEvents = "$baseUrl/event/eventsoutput";
+  static const String getEvents = "$baseUrl/event/events";
   
-  // Alternative event endpoints to try if main one fails
-  static const String getEventsAlt1 = "$baseUrl/events";
-  static const String getEventsAlt2 = "$baseUrl/event/events";
-  static const String getEventsAlt3 = "$baseUrl/event/list";
+  // Ticket/Passes endpoints
+  static String getEventPasses(String eventId) => "$baseUrl/passes/$eventId";
+  
+  // Payment endpoints
+  static const String createOrder = "$baseUrl/payment/create-order";
+  static const String verifyPayment = "$baseUrl/payment/verify-payment";
   
   // Headers
   static Map<String, String> get headers => {

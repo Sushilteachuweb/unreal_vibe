@@ -10,6 +10,7 @@ import 'widgets/settings_card.dart';
 import 'widgets/achievements_card.dart';
 import 'widgets/additional_options_card.dart';
 import 'widgets/footer_links.dart';
+import '../../widgets/skeleton_loading.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({Key? key}) : super(key: key);
@@ -18,32 +19,69 @@ class ProfileScreen extends StatefulWidget {
   State<ProfileScreen> createState() => _ProfileScreenState();
 }
 
-class _ProfileScreenState extends State<ProfileScreen> {
+class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserver {
   bool _isLoading = false;
   bool _hasError = false;
 
   @override
   void initState() {
     super.initState();
-    _fetchProfile();
+    WidgetsBinding.instance.addObserver(this);
+    _fetchProfileIfNeeded();
   }
 
-  Future<void> _fetchProfile() async {
-    setState(() {
-      _isLoading = true;
-      _hasError = false;
-    });
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // Reset loading state when app comes back to foreground
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _hasError = false;
+        });
+      }
+    }
+  }
+
+  // This method is called when returning from another screen
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Reset loading states when returning to this screen
+    if (mounted) {
+      setState(() {
+        _isLoading = false;
+        _hasError = false;
+      });
+    }
+  }
+
+  Future<void> _fetchProfileIfNeeded() async {
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    
+    // Only show loading if we don't have cached data
+    if (!userProvider.hasUserData) {
+      setState(() {
+        _isLoading = true;
+        _hasError = false;
+      });
+    }
 
     try {
-      final userProvider = Provider.of<UserProvider>(context, listen: false);
-      final result = await userProvider.fetchProfile();
+      final result = await userProvider.fetchProfileIfNeeded();
 
       if (!mounted) return;
 
-      if (!result['success']) {
+      if (!result['success'] && !userProvider.hasUserData) {
         setState(() => _hasError = true);
         
-        // Show error message
+        // Show error message only if we don't have cached data
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(result['message'] ?? 'Failed to load profile'),
@@ -51,13 +89,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
             action: SnackBarAction(
               label: 'Retry',
               textColor: Colors.white,
-              onPressed: _fetchProfile,
+              onPressed: _onRefresh,
             ),
           ),
         );
       }
     } catch (e) {
-      if (mounted) {
+      if (mounted && !userProvider.hasUserData) {
         setState(() => _hasError = true);
       }
     } finally {
@@ -65,6 +103,73 @@ class _ProfileScreenState extends State<ProfileScreen> {
         setState(() => _isLoading = false);
       }
     }
+  }
+
+  Future<void> _onRefresh() async {
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    await userProvider.fetchProfile(forceRefresh: true);
+  }
+
+  Widget _buildSkeletonLoading(double padding) {
+    return SingleChildScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      child: Padding(
+        padding: EdgeInsets.symmetric(horizontal: padding),
+        child: Column(
+          children: [
+            const SizedBox(height: 20),
+            // Profile header skeleton
+            const ProfileHeaderSkeleton(),
+            const SizedBox(height: 24),
+            // Host mode toggle skeleton
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1A1A1A),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFF2A2A2A)),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const SkeletonLoading(width: 120, height: 18),
+                  const SkeletonLoading(width: 50, height: 30, borderRadius: BorderRadius.all(Radius.circular(15))),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
+            // Verification card skeleton
+            const ProfileCardSkeleton(),
+            const SizedBox(height: 24),
+            // My profile card skeleton
+            const ProfileCardSkeleton(),
+            const SizedBox(height: 24),
+            // Settings card skeleton
+            const ProfileCardSkeleton(),
+            const SizedBox(height: 24),
+            // Achievements card skeleton
+            const ProfileCardSkeleton(),
+            const SizedBox(height: 24),
+            // Additional options card skeleton
+            const ProfileCardSkeleton(),
+            const SizedBox(height: 32),
+            // Footer links skeleton
+            Column(
+              children: [
+                const SkeletonLoading(width: 150, height: 16),
+                const SizedBox(height: 8),
+                const SkeletonLoading(width: 120, height: 16),
+                const SizedBox(height: 8),
+                const SkeletonLoading(width: 100, height: 16),
+              ],
+            ),
+            const SizedBox(height: 20),
+            const SkeletonLoading(width: 200, height: 14),
+            const SizedBox(height: 40),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -77,7 +182,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       backgroundColor: Colors.black,
       appBar: _buildAppBar(),
       body: RefreshIndicator(
-        onRefresh: _fetchProfile,
+        onRefresh: _onRefresh,
         color: const Color(0xFF6366F1),
         backgroundColor: Colors.white,
         child: Center(
@@ -85,13 +190,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
             constraints: BoxConstraints(
               maxWidth: ResponsiveHelper.getMaxContentWidth(context),
             ),
-            child: _isLoading && !_hasError
-                ? const Center(
-                    child: CircularProgressIndicator(
-                      color: Color(0xFF6366F1),
-                    ),
-                  )
-                : SingleChildScrollView(
+            child: Consumer<UserProvider>(
+              builder: (context, userProvider, child) {
+                // Show skeleton loading only when we have no user data and are loading
+                if (_isLoading && !userProvider.hasUserData && !_hasError) {
+                  return _buildSkeletonLoading(padding);
+                }
+                
+                // Show main content
+                return RefreshLoadingIndicator(
+                  isLoading: userProvider.isLoading && userProvider.hasUserData,
+                  child: SingleChildScrollView(
                     physics: const AlwaysScrollableScrollPhysics(),
                     child: Padding(
                       padding: EdgeInsets.symmetric(horizontal: padding),
@@ -120,6 +229,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                     ),
                   ),
+                );
+              },
+            ),
           ),
         ),
       ),

@@ -4,6 +4,8 @@ class TicketType {
   final double price;
   final String description;
   final List<String> includes;
+  final int? totalQuantity;
+  final int? remainingQuantity;
 
   TicketType({
     required this.id,
@@ -11,7 +13,46 @@ class TicketType {
     required this.price,
     required this.description,
     required this.includes,
+    this.totalQuantity,
+    this.remainingQuantity,
   });
+
+  // Create TicketType from API TicketPass
+  factory TicketType.fromPass(dynamic pass, String? whatsIncluded) {
+    // Handle both object and map formats
+    String passId = '';
+    String passType = '';
+    double passPrice = 0.0;
+    int? totalQty;
+    int? remainingQty;
+    
+    if (pass is Map<String, dynamic>) {
+      passId = pass['id'] ?? pass['_id'] ?? '';
+      passType = pass['type'] ?? '';
+      passPrice = (pass['price'] ?? 0).toDouble();
+      totalQty = pass['totalQuantity'];
+      remainingQty = pass['remainingQuantity'];
+    } else {
+      // Handle object format
+      passId = pass.id ?? pass._id ?? '';
+      passType = pass.type ?? '';
+      passPrice = (pass.price ?? 0).toDouble();
+      totalQty = pass.totalQuantity;
+      remainingQty = pass.remainingQuantity;
+    }
+    
+    return TicketType(
+      id: passId,
+      name: passType.isNotEmpty 
+          ? passType[0].toUpperCase() + passType.substring(1).toLowerCase()
+          : passType,
+      price: passPrice,
+      description: whatsIncluded ?? 'Entry Ticket',
+      includes: [whatsIncluded ?? 'Entry Ticket'],
+      totalQuantity: totalQty,
+      remainingQuantity: remainingQty,
+    );
+  }
 
   static List<TicketType> getTicketTypes() {
     return [
@@ -43,6 +84,15 @@ class TicketType {
         ],
       ),
     ];
+  }
+
+  // Create ticket types from event passes
+  static List<TicketType> fromEventPasses(List<dynamic>? passes, String? whatsIncluded) {
+    if (passes == null || passes.isEmpty) {
+      return getTicketTypes(); // Fallback to default
+    }
+    
+    return passes.map((pass) => TicketType.fromPass(pass, whatsIncluded)).toList();
   }
 }
 

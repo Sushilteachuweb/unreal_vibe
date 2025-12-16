@@ -156,7 +156,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                                   ),
                                 ),
                                 const SizedBox(width: 10),
-                                Expanded(
+                                Flexible(
                                   child: Text(
                                     "I agree to the Terms of Service and Privacy Policy",
                                     style: TextStyle(

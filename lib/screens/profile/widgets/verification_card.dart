@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../../providers/user_provider.dart';
 import '../verify_profile_screen.dart';
 
 class VerificationCard extends StatelessWidget {
@@ -6,66 +8,136 @@ class VerificationCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF1A1A1A), Color(0xFF1F1F1F)],
-        ),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF2A2A2A)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.2),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Verification Level',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
+    return Consumer<UserProvider>(
+      builder: (context, userProvider, child) {
+        final user = userProvider.user;
+        
+        // Show subtle profile complete status if 100% complete
+        if (user?.profileCompletion == 100) {
+          return Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: const Color(0xFF1A1A1A),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFF2A2A2A)),
             ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.check_circle_outline,
+                  color: const Color(0xFF10B981).withOpacity(0.7),
+                  size: 18,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Profile Complete',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF10B981).withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    '${user?.profileCompletion ?? 0}%',
+                    style: TextStyle(
+                      color: const Color(0xFF10B981).withOpacity(0.8),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+
+        // Show verification progress if not complete
+        final profileCompletion = user?.profileCompletion ?? 0;
+        final hasDocuments = user?.documents != null;
+        final hasProfilePhoto = user?.profilePhotoUrl != null;
+        
+        return Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Color(0xFF1A1A1A), Color(0xFF1F1F1F)],
+            ),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFF2A2A2A)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.2),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
-          const SizedBox(height: 12),
-          _buildProgressBar(),
-          const SizedBox(height: 16),
-          _buildVerificationItem(Icons.phone, 'Phone Verified', true),
-          _buildVerificationItem(Icons.credit_card, 'ID Upload', false),
-          _buildVerificationItem(Icons.account_circle, 'Profile Photo Update', false),
-          const SizedBox(height: 16),
-          _buildCompleteVerificationButton(),
-        ],
-      ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Verification Level',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'For becoming host complete profile by uploading document',
+                style: TextStyle(
+                  color: Color(0xFF9CA3AF),
+                  fontSize: 14,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+              const SizedBox(height: 12),
+              _buildProgressBar(profileCompletion),
+              const SizedBox(height: 16),
+              _buildVerificationItem(Icons.phone, 'Phone Verified', true),
+              _buildVerificationItem(Icons.credit_card, 'ID Upload', hasDocuments),
+              _buildVerificationItem(Icons.account_circle, 'Profile Photo Update', hasProfilePhoto),
+              const SizedBox(height: 16),
+              _buildCompleteVerificationButton(),
+            ],
+          ),
+        );
+      },
     );
   }
 
-  Widget _buildProgressBar() {
+  Widget _buildProgressBar(int profileCompletion) {
+    String level = 'Level 1';
+    if (profileCompletion >= 80) level = 'Level 3';
+    else if (profileCompletion >= 50) level = 'Level 2';
+    
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text(
-              'Level 1',
+            Text(
+              level,
               style: TextStyle(
                 color: Color(0xFF6366F1),
                 fontSize: 14,
                 fontWeight: FontWeight.w500,
               ),
             ),
-            const Text(
-              '33% Complete',
+            Text(
+              '$profileCompletion% Complete',
               style: TextStyle(
                 color: Color(0xFF9CA3AF),
                 fontSize: 12,
@@ -82,11 +154,13 @@ class VerificationCard extends StatelessWidget {
           ),
           child: FractionallySizedBox(
             alignment: Alignment.centerLeft,
-            widthFactor: 0.33,
+            widthFactor: profileCompletion / 100.0,
             child: Container(
               decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+                gradient: LinearGradient(
+                  colors: profileCompletion >= 80 
+                      ? [Color(0xFF10B981), Color(0xFF059669)]
+                      : [Color(0xFF6366F1), Color(0xFF8B5CF6)],
                 ),
                 borderRadius: BorderRadius.circular(4),
               ),

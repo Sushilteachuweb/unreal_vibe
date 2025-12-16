@@ -20,8 +20,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   late TextEditingController _cityController;
   late TextEditingController _bioController;
   late TextEditingController _funFactController;
+  late TextEditingController _interestsController;
   String _selectedGender = 'Male';
-  List<String> _selectedInterests = [];
   
   File? _profilePhoto;
   File? _aadhaar;
@@ -37,10 +37,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     _nameController = TextEditingController(text: user?.name ?? '');
     _emailController = TextEditingController(text: user?.email ?? '');
     _cityController = TextEditingController(text: user?.city ?? '');
-    _bioController = TextEditingController(text: ''); // Will be added to API later
-    _funFactController = TextEditingController(text: ''); // Will be added to API later
+    _bioController = TextEditingController(text: user?.bio ?? '');
+    _funFactController = TextEditingController(text: user?.funFact ?? '');
+    _interestsController = TextEditingController(
+      text: user?.interests?.join(', ') ?? '',
+    );
     _selectedGender = user?.gender ?? 'Male';
-    _selectedInterests = []; // Will be added to API later
   }
 
   @override
@@ -50,6 +52,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     _cityController.dispose();
     _bioController.dispose();
     _funFactController.dispose();
+    _interestsController.dispose();
     super.dispose();
   }
 
@@ -165,11 +168,24 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     try {
       final userProvider = Provider.of<UserProvider>(context, listen: false);
       
+      // Convert interests string to list
+      List<String> interestsList = [];
+      if (_interestsController.text.trim().isNotEmpty) {
+        interestsList = _interestsController.text
+            .split(',')
+            .map((interest) => interest.trim())
+            .where((interest) => interest.isNotEmpty)
+            .toList();
+      }
+
       final result = await userProvider.completeProfile(
         name: _nameController.text.trim(),
         email: _emailController.text.trim(),
         city: _cityController.text.trim(),
         gender: _selectedGender,
+        bio: _bioController.text.trim().isNotEmpty ? _bioController.text.trim() : null,
+        funFact: _funFactController.text.trim().isNotEmpty ? _funFactController.text.trim() : null,
+        interests: interestsList.isNotEmpty ? interestsList : null,
         profilePhoto: _profilePhoto,
         aadhaar: _aadhaar,
         pan: _pan,
@@ -448,11 +464,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   Widget _buildInterestsSelector() {
-    final availableInterests = [
-      'EDM', 'Techno', 'House Parties', 'Travel', 'Photography',
-      'Music', 'Dancing', 'Art', 'Sports', 'Gaming', 'Food', 'Movies'
-    ];
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -465,40 +476,38 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           ),
         ),
         const SizedBox(height: 8),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: availableInterests.map((interest) {
-            final isSelected = _selectedInterests.contains(interest);
-            return GestureDetector(
-              onTap: () {
-                setState(() {
-                  if (isSelected) {
-                    _selectedInterests.remove(interest);
-                  } else {
-                    _selectedInterests.add(interest);
-                  }
-                });
-              },
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                decoration: BoxDecoration(
-                  color: isSelected ? const Color(0xFF6958CA) : const Color(0xFF1A1A1A),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: isSelected ? const Color(0xFF6958CA) : const Color(0xFF2A2A2A),
-                  ),
-                ),
-                child: Text(
-                  interest,
-                  style: TextStyle(
-                    color: isSelected ? Colors.white : const Color(0xFF9CA3AF),
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-            );
-          }).toList(),
+        TextFormField(
+          controller: _interestsController,
+          maxLines: 3,
+          style: const TextStyle(color: Colors.white),
+          decoration: InputDecoration(
+            prefixIcon: const Icon(Icons.interests, color: Color(0xFF6B7280)),
+            filled: true,
+            fillColor: const Color(0xFF1A1A1A),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFF2A2A2A)),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFF2A2A2A)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFFE94B8B)),
+            ),
+            hintText: 'Enter your interests separated by commas (e.g., Music, Travel, Photography, Dancing)',
+            hintStyle: const TextStyle(color: Color(0xFF6B7280)),
+          ),
+        ),
+        const SizedBox(height: 8),
+        const Text(
+          'Tip: Separate multiple interests with commas',
+          style: TextStyle(
+            color: Color(0xFF6B7280),
+            fontSize: 12,
+            fontStyle: FontStyle.italic,
+          ),
         ),
       ],
     );

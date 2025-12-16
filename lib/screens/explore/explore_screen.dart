@@ -6,6 +6,7 @@ import '../home/event_details_screen.dart';
 import '../../providers/user_provider.dart';
 import '../../providers/event_provider.dart';
 import '../search/search_screen.dart';
+import '../../widgets/skeleton_loading.dart';
 
 class ExploreScreen extends StatefulWidget {
   const ExploreScreen({super.key});
@@ -21,10 +22,112 @@ class _ExploreScreenState extends State<ExploreScreen> {
   @override
   void initState() {
     super.initState();
-    // Fetch events when the screen loads
+    // Only fetch events if needed (no cache or cache expired)
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<EventProvider>().fetchEvents();
+      context.read<EventProvider>().fetchEventsIfNeeded();
     });
+  }
+
+  Future<void> _onRefresh() async {
+    await context.read<EventProvider>().fetchEvents(forceRefresh: true);
+  }
+
+  Widget _buildSkeletonLoading() {
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 8),
+          // Search bar skeleton
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16),
+            child: SkeletonLoading(width: double.infinity, height: 48),
+          ),
+          const SizedBox(height: 16),
+          // Category chips skeleton
+          SizedBox(
+            height: 36,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              itemCount: 5,
+              itemBuilder: (context, index) {
+                return Container(
+                  margin: const EdgeInsets.only(right: 8),
+                  child: const SkeletonLoading(
+                    width: 80,
+                    height: 36,
+                    borderRadius: BorderRadius.all(Radius.circular(20)),
+                  ),
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 20),
+          // Trending section skeleton
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    SkeletonLoading(width: 150, height: 18),
+                    SkeletonLoading(width: 60, height: 14),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                height: 280,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.only(left: 16, right: 4),
+                  itemCount: 3,
+                  itemBuilder: (context, index) {
+                    final screenWidth = MediaQuery.of(context).size.width;
+                    final cardWidth = screenWidth - 32 - 40;
+                    return Container(
+                      width: cardWidth,
+                      margin: const EdgeInsets.only(right: 12),
+                      child: const EventCardSkeleton(isHorizontal: true),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+          // Upcoming events skeleton
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SkeletonLoading(width: 150, height: 18),
+                SizedBox(height: 12),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: ListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: 5,
+              itemBuilder: (context, index) {
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  child: const EventCardSkeleton(),
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 100),
+        ],
+      ),
+    );
   }
 
   @override
@@ -44,9 +147,9 @@ class _ExploreScreenState extends State<ExploreScreen> {
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: _buildAppBar(),
-      body: eventProvider.isLoading
-          ? const Center(child: CircularProgressIndicator(color: Color(0xFF6958CA)))
-          : eventProvider.error != null
+      body: eventProvider.isLoading && !eventProvider.hasData
+          ? _buildSkeletonLoading()
+          : eventProvider.error != null && !eventProvider.hasData
               ? Center(
                   child: Padding(
                     padding: const EdgeInsets.all(16.0),
@@ -81,32 +184,41 @@ class _ExploreScreenState extends State<ExploreScreen> {
                     ),
                   ),
                 )
-              : SingleChildScrollView(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const SizedBox(height: 8),
-                      
-                      // Search Bar
-                      _buildSearchBar(),
-                      
-                      const SizedBox(height: 16),
-                      
-                      // Category Chips
-                      _buildCategoryChips(),
-                      
-                      const SizedBox(height: 20),
-                      
-                      // Trending Near You
-                      _buildTrendingSection(trendingEvents),
-                      
-                      const SizedBox(height: 24),
-                      
-                      // Upcoming Events
-                      _buildUpcomingEventsSection(filteredEvents),
-                      
-                      const SizedBox(height: 100),
-                    ],
+              : RefreshLoadingIndicator(
+                  isLoading: eventProvider.isLoading && eventProvider.hasData,
+                  child: RefreshIndicator(
+                    onRefresh: _onRefresh,
+                    color: const Color(0xFF6958CA),
+                    backgroundColor: Colors.white,
+                    child: SingleChildScrollView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const SizedBox(height: 8),
+                          
+                          // Search Bar
+                          _buildSearchBar(),
+                          
+                          const SizedBox(height: 16),
+                          
+                          // Category Chips
+                          _buildCategoryChips(),
+                          
+                          const SizedBox(height: 20),
+                          
+                          // Trending Near You
+                          _buildTrendingSection(trendingEvents),
+                          
+                          const SizedBox(height: 24),
+                          
+                          // Upcoming Events
+                          _buildUpcomingEventsSection(filteredEvents),
+                          
+                          const SizedBox(height: 100),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
     );

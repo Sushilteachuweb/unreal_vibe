@@ -65,9 +65,14 @@ class User {
   final bool isProfileComplete;
   final String role;
   final String? bio;
+  final String? funFact;
+  final List<String>? interests;
   final bool isVerified;
   final bool isHostRequestPending;
   final bool isActive;
+  final bool isHost;
+  final bool isHostVerified;
+  final int eventsHosted;
   final List<UserPhoto> photos;
   final UserDocuments? documents;
   final String? createdAt;
@@ -84,9 +89,14 @@ class User {
     this.isProfileComplete = false,
     this.role = 'guest',
     this.bio,
+    this.funFact,
+    this.interests,
     this.isVerified = false,
     this.isHostRequestPending = false,
     this.isActive = true,
+    this.isHost = false,
+    this.isHostVerified = false,
+    this.eventsHosted = 0,
     this.photos = const [],
     this.documents,
     this.createdAt,
@@ -121,9 +131,14 @@ class User {
       'isProfileComplete': isProfileComplete,
       'role': role,
       'bio': bio,
+      'funFact': funFact,
+      'interests': interests,
       'isVerified': isVerified,
       'isHostRequestPending': isHostRequestPending,
       'isActive': isActive,
+      'isHost': isHost,
+      'isHostVerified': isHostVerified,
+      'eventsHosted': eventsHosted,
       'photos': photos.map((photo) => photo.toJson()).toList(),
       if (documents != null) 'documents': documents!.toJson(),
       'createdAt': createdAt,
@@ -147,6 +162,12 @@ class User {
       }
     }
 
+    // Parse interests list
+    List<String>? interestsList;
+    if (json['interests'] != null && json['interests'] is List) {
+      interestsList = List<String>.from(json['interests']);
+    }
+
     return User(
       id: json['_id'] ?? json['id'] ?? '',
       phone: json['phone'] ?? json['phoneNumber'] ?? '',
@@ -158,9 +179,14 @@ class User {
       isProfileComplete: json['isProfileComplete'] ?? false,
       role: json['role'] ?? 'guest',
       bio: json['bio'],
+      funFact: json['funFact'],
+      interests: interestsList,
       isVerified: json['isVerified'] ?? false,
       isHostRequestPending: json['isHostRequestPending'] ?? false,
       isActive: json['isActive'] ?? true,
+      isHost: json['isHost'] ?? false,
+      isHostVerified: json['isHostVerified'] ?? false,
+      eventsHosted: json['eventsHosted'] ?? 0,
       photos: photosList,
       documents: json['documents'] != null 
           ? UserDocuments.fromJson(json['documents']) 
@@ -182,9 +208,14 @@ class User {
     bool? isProfileComplete,
     String? role,
     String? bio,
+    String? funFact,
+    List<String>? interests,
     bool? isVerified,
     bool? isHostRequestPending,
     bool? isActive,
+    bool? isHost,
+    bool? isHostVerified,
+    int? eventsHosted,
     List<UserPhoto>? photos,
     UserDocuments? documents,
     String? createdAt,
@@ -201,9 +232,14 @@ class User {
       isProfileComplete: isProfileComplete ?? this.isProfileComplete,
       role: role ?? this.role,
       bio: bio ?? this.bio,
+      funFact: funFact ?? this.funFact,
+      interests: interests ?? this.interests,
       isVerified: isVerified ?? this.isVerified,
       isHostRequestPending: isHostRequestPending ?? this.isHostRequestPending,
       isActive: isActive ?? this.isActive,
+      isHost: isHost ?? this.isHost,
+      isHostVerified: isHostVerified ?? this.isHostVerified,
+      eventsHosted: eventsHosted ?? this.eventsHosted,
       photos: photos ?? this.photos,
       documents: documents ?? this.documents,
       createdAt: createdAt ?? this.createdAt,

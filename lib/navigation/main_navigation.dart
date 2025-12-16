@@ -3,7 +3,7 @@ import '../utils/responsive_helper.dart';
 import '../screens/home/home_screen.dart';
 import '../screens/explore/explore_screen.dart';
 import '../screens/create/create_screen.dart';
-import '../screens/ticket/tickets_screen.dart';
+import '../screens/ticket/my_tickets_screen.dart';
 import '../screens/profile/profile_screen.dart';
 import '../screens/home/bottom_navigation.dart';
 
@@ -22,7 +22,7 @@ class _MainNavigationState extends State<MainNavigation> {
     const HomeScreen(),
     const ExploreScreen(),
     const CreateScreen(),
-    const TicketsScreen(),
+    const MyTicketsScreen(),
     const ProfileScreen(),
   ];
 

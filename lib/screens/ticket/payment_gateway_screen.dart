@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
-import '../home/bottom_navigation.dart';
+import 'package:provider/provider.dart';
 import 'package:flutter/services.dart';
+import '../home/bottom_navigation.dart';
 import '../../utils/responsive_helper.dart';
-import '../ticket/tickets_screen.dart';
+
+import '../../providers/payment_provider.dart';
+import '../../services/razorpay_service.dart';
+import '../../services/dummy_razorpay_service.dart';
+import 'package:razorpay_flutter/razorpay_flutter.dart';
 
 class PaymentGatewayScreen extends StatefulWidget {
   final double totalAmount;
@@ -27,18 +32,12 @@ class PaymentGatewayScreen extends StatefulWidget {
 }
 
 class _PaymentGatewayScreenState extends State<PaymentGatewayScreen> with SingleTickerProviderStateMixin {
-  bool _isUPIExpanded = false;
-  String _selectedPaymentMethod = '';
-  String _selectedUPIOption = '';
   bool _isProcessing = false;
+  bool _useDummyRazorpay = true; // Toggle for testing
+  bool _isUPIExpanded = false;
   late AnimationController _animationController;
-
-  final List<Map<String, dynamic>> _upiOptions = [
-    {'name': 'Google Pay', 'icon': Icons.payment, 'color': Color(0xFF4285F4)},
-    {'name': 'PhonePe', 'icon': Icons.phone_android, 'color': Color(0xFF5F259F)},
-    {'name': 'Paytm', 'icon': Icons.account_balance_wallet, 'color': Color(0xFF00B9F5)},
-    {'name': 'Amazon Pay', 'icon': Icons.shopping_bag, 'color': Color(0xFFFF9900)},
-  ];
+  String? _selectedUPIOption;
+  String _selectedPaymentMethod = 'UPI';
 
   @override
   void initState() {
@@ -54,6 +53,15 @@ class _PaymentGatewayScreenState extends State<PaymentGatewayScreen> with Single
     _animationController.dispose();
     super.dispose();
   }
+
+  final List<Map<String, dynamic>> _upiOptions = [
+    {'name': 'Google Pay', 'icon': Icons.payment, 'color': Color(0xFF4285F4)},
+    {'name': 'PhonePe', 'icon': Icons.phone_android, 'color': Color(0xFF5F259F)},
+    {'name': 'Paytm', 'icon': Icons.account_balance_wallet, 'color': Color(0xFF00B9F5)},
+    {'name': 'Amazon Pay', 'icon': Icons.shopping_bag, 'color': Color(0xFFFF9900)},
+  ];
+
+
 
   @override
   Widget build(BuildContext context) {
@@ -73,17 +81,9 @@ class _PaymentGatewayScreenState extends State<PaymentGatewayScreen> with Single
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _buildOrderSummary(context),
-                    const SizedBox(height: 28),
-                    _buildSectionHeader('Quick Pay', context),
-                    const SizedBox(height: 16),
-                    _buildUPISection(context),
-                    const SizedBox(height: 28),
-                    _buildSectionHeader('Other Payment Methods', context),
-                    const SizedBox(height: 16),
-                    _buildPaymentOptions(context),
                     const SizedBox(height: 32),
                     _buildSecurityBadge(context),
-                    const SizedBox(height: 120), // Increased bottom padding
+                    const SizedBox(height: 100),
                   ],
                 ),
               ),
@@ -161,23 +161,41 @@ class _PaymentGatewayScreenState extends State<PaymentGatewayScreen> with Single
               ],
             ),
           ),
-          const SizedBox(width: 40),
+          // Debug toggle for testing
+          GestureDetector(
+            onTap: () {
+              setState(() {
+                _useDummyRazorpay = !_useDummyRazorpay;
+              });
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(_useDummyRazorpay ? 'Using Dummy Razorpay' : 'Using Real Razorpay'),
+                  duration: const Duration(seconds: 1),
+                ),
+              );
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: _useDummyRazorpay ? Colors.orange : Colors.green,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                _useDummyRazorpay ? 'DEMO' : 'LIVE',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildSectionHeader(String title, BuildContext context) {
-    return Text(
-      title,
-      style: TextStyle(
-        color: Colors.white,
-        fontSize: ResponsiveHelper.getResponsiveFontSize(context, 18),
-        fontWeight: FontWeight.w600,
-        letterSpacing: 0.3,
-      ),
-    );
-  }
+
 
   Widget _buildOrderSummary(BuildContext context) {
     return Container(
@@ -777,37 +795,28 @@ class _PaymentGatewayScreenState extends State<PaymentGatewayScreen> with Single
   }
 
   Widget _buildPayButton(BuildContext context, double padding) {
-    final bool isPaymentMethodSelected = _selectedPaymentMethod.isNotEmpty;
-
     return Padding(
       padding: EdgeInsets.fromLTRB(padding, 12, padding, 8),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
+      child: Container(
         width: double.infinity,
         height: 56,
         decoration: BoxDecoration(
-          gradient: isPaymentMethodSelected
-              ? const LinearGradient(
+          gradient: const LinearGradient(
             colors: [Color(0xFF7B5FFF), Color(0xFF9D7FFF)],
             begin: Alignment.centerLeft,
             end: Alignment.centerRight,
-          )
-              : LinearGradient(
-            colors: [Colors.grey[800]!, Colors.grey[800]!],
           ),
           borderRadius: BorderRadius.circular(20),
-          boxShadow: isPaymentMethodSelected
-              ? [
+          boxShadow: [
             BoxShadow(
               color: const Color(0xFF7B5FFF).withOpacity(0.4),
               blurRadius: 20,
               offset: const Offset(0, 10),
             ),
-          ]
-              : null,
+          ],
         ),
         child: ElevatedButton(
-          onPressed: isPaymentMethodSelected && !_isProcessing ? _handlePayment : null,
+          onPressed: !_isProcessing ? _handlePayment : null,
           style: ElevatedButton.styleFrom(
             backgroundColor: Colors.transparent,
             shadowColor: Colors.transparent,
@@ -831,7 +840,7 @@ class _PaymentGatewayScreenState extends State<PaymentGatewayScreen> with Single
               const Icon(Icons.lock, size: 20, color: Colors.white),
               const SizedBox(width: 8),
               Text(
-                'Pay \$${widget.totalAmount.toStringAsFixed(2)}',
+                'Pay ₹${widget.totalAmount.toStringAsFixed(2)}',
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: ResponsiveHelper.getResponsiveFontSize(context, 16),
@@ -871,32 +880,216 @@ class _PaymentGatewayScreenState extends State<PaymentGatewayScreen> with Single
   }
 
   void _handlePayment() async {
-    if (_selectedPaymentMethod.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Please select a payment method'),
-          backgroundColor: Colors.red[700],
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          margin: const EdgeInsets.all(16),
-        ),
-      );
-      return;
-    }
-
     setState(() => _isProcessing = true);
     HapticFeedback.mediumImpact();
 
-    // Simulate payment processing
-    await Future.delayed(const Duration(seconds: 2));
-
-    setState(() => _isProcessing = false);
-
-    // Show success dialog
-    _showPaymentSuccessDialog();
+    // Use dummy or real Razorpay based on toggle
+    if (_useDummyRazorpay) {
+      _handleDummyPayment();
+    } else {
+      _handleRealPayment();
+    }
   }
 
-  void _showPaymentSuccessDialog() {
+  void _handleDummyPayment() {
+    final dummyRazorpayService = DummyRazorpayService();
+    
+    dummyRazorpayService.initialize(
+      onPaymentSuccess: (DummyPaymentSuccessResponse response) {
+        setState(() => _isProcessing = false);
+        _showPaymentSuccessDialog(
+          paymentId: response.paymentId,
+          orderId: response.orderId,
+        );
+      },
+      onPaymentError: (DummyPaymentFailureResponse response) {
+        setState(() => _isProcessing = false);
+        _showPaymentErrorDialog(response.message);
+      },
+    );
+
+    // Open dummy Razorpay checkout
+    dummyRazorpayService.openCheckout(
+      context: context,
+      amount: widget.totalAmount,
+      name: widget.userName,
+      email: widget.userEmail,
+      contact: widget.whatsappNumber,
+      description: 'Ticket for ${widget.eventName}',
+    );
+    
+    setState(() => _isProcessing = false);
+  }
+
+  // Real Razorpay implementation (commented out for now)
+  void _handleRealPayment() async {
+    try {
+      final paymentProvider = context.read<PaymentProvider>();
+      
+      // Create payment request
+      final paymentRequest = PaymentRequest(
+        eventId: 'event_${DateTime.now().millisecondsSinceEpoch}',
+        eventName: widget.eventName,
+        quantity: widget.ticketCount,
+        amount: widget.totalAmount,
+        ticketType: 'Event Ticket',
+        userDetails: {
+          'name': widget.userName,
+          'email': widget.userEmail,
+          'phone': widget.whatsappNumber,
+        },
+      );
+
+      // Initialize Razorpay service
+      final razorpayService = RazorpayService();
+      razorpayService.initialize(
+        onPaymentSuccess: (PaymentSuccessResponse response) async {
+          setState(() => _isProcessing = false);
+          
+          // Verify payment on backend
+          final isVerified = await paymentProvider.verifyPayment(
+            paymentId: response.paymentId!,
+            orderId: response.orderId!,
+            signature: response.signature!,
+            bookingDetails: paymentRequest.toJson(),
+          );
+
+          if (isVerified) {
+            _showPaymentSuccessDialog(
+              paymentId: response.paymentId!,
+              orderId: response.orderId!,
+            );
+          } else {
+            _showPaymentErrorDialog('Payment verification failed');
+          }
+        },
+        onPaymentError: (PaymentFailureResponse response) {
+          setState(() => _isProcessing = false);
+          _showPaymentErrorDialog(response.message ?? 'Payment failed');
+        },
+        onExternalWallet: (ExternalWalletResponse response) {
+          setState(() => _isProcessing = false);
+          debugPrint('External wallet selected: ${response.walletName}');
+        },
+      );
+
+      // Create order and open Razorpay
+      final orderData = await paymentProvider.createOrder(
+        amount: widget.totalAmount,
+        currency: 'INR',
+        notes: {
+          'event_name': widget.eventName,
+          'ticket_count': widget.ticketCount.toString(),
+          'user_name': widget.userName,
+          'user_email': widget.userEmail,
+        },
+      );
+
+      if (orderData != null) {
+        razorpayService.openCheckout(
+          orderId: orderData['id'],
+          amount: widget.totalAmount,
+          name: widget.userName,
+          email: widget.userEmail,
+          contact: widget.whatsappNumber,
+          description: 'Ticket for ${widget.eventName}',
+          prefillName: widget.userName,
+          prefillEmail: widget.userEmail,
+          prefillContact: widget.whatsappNumber,
+        );
+      } else {
+        setState(() => _isProcessing = false);
+        _showPaymentErrorDialog('Failed to create order. Please try again.');
+      }
+    } catch (e) {
+      setState(() => _isProcessing = false);
+      _showPaymentErrorDialog('Payment processing error: $e');
+    }
+  }
+
+  void _showPaymentErrorDialog(String errorMessage) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          child: Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF1A1625), Color(0xFF0F0F17)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: Colors.red, width: 2),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 80,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    color: Colors.red,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.close,
+                    color: Colors.white,
+                    size: 40,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                const Text(
+                  'Payment Failed',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  errorMessage,
+                  style: TextStyle(
+                    color: Colors.grey[400],
+                    fontSize: 14,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.pop(context),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    child: const Text(
+                      'Try Again',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showPaymentSuccessDialog({String? paymentId, String? orderId}) {
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -1009,7 +1202,7 @@ class _PaymentGatewayScreenState extends State<PaymentGatewayScreen> with Single
                             ),
                           ),
                           Text(
-                            _selectedPaymentMethod,
+                            'Razorpay',
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 14,

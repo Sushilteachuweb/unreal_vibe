@@ -9,11 +9,21 @@ class UserProvider extends ChangeNotifier {
   bool _isLoggedIn = false;
   bool _isLoading = true;
   String? _authToken;
+  DateTime? _lastProfileFetchTime;
+  static const Duration _profileCacheValidDuration = Duration(minutes: 10); // Cache profile for 10 minutes
 
   User? get user => _user;
   bool get isLoggedIn => _isLoggedIn;
   bool get isLoading => _isLoading;
   String? get authToken => _authToken;
+  bool get hasUserData => _user != null;
+
+  // Check if we need to fetch profile data (no data or cache expired)
+  bool get shouldFetchProfile {
+    if (_user == null) return true;
+    if (_lastProfileFetchTime == null) return true;
+    return DateTime.now().difference(_lastProfileFetchTime!) > _profileCacheValidDuration;
+  }
 
   UserProvider() {
     _loadUserData();
@@ -108,6 +118,9 @@ class UserProvider extends ChangeNotifier {
     required String email,
     required String city,
     required String gender,
+    String? bio,
+    String? funFact,
+    List<String>? interests,
     dynamic aadhaar,
     dynamic drivingLicense,
     dynamic pan,
@@ -119,6 +132,9 @@ class UserProvider extends ChangeNotifier {
         email: email,
         city: city,
         gender: gender,
+        bio: bio,
+        funFact: funFact,
+        interests: interests,
         aadhaar: aadhaar,
         drivingLicense: drivingLicense,
         pan: pan,
@@ -143,8 +159,20 @@ class UserProvider extends ChangeNotifier {
     }
   }
 
+  // Fetch profile only if needed (no cache or cache expired)
+  Future<Map<String, dynamic>> fetchProfileIfNeeded() async {
+    if (!shouldFetchProfile) {
+      return {'success': true, 'message': 'Using cached data'};
+    }
+    return await fetchProfile(forceRefresh: true);
+  }
+
   // Get Profile
-  Future<Map<String, dynamic>> fetchProfile() async {
+  Future<Map<String, dynamic>> fetchProfile({bool forceRefresh = false}) async {
+    if (!forceRefresh && !shouldFetchProfile) {
+      return {'success': true, 'message': 'Using cached data'};
+    }
+
     try {
       final result = await ProfileService.getProfile();
       
@@ -152,6 +180,7 @@ class UserProvider extends ChangeNotifier {
         // Update provider state with fetched user data
         if (result['user'] != null) {
           _user = User.fromJson(result['user']);
+          _lastProfileFetchTime = DateTime.now();
           notifyListeners();
         }
       }
@@ -166,9 +195,9 @@ class UserProvider extends ChangeNotifier {
     }
   }
 
-  // Refresh profile data
+  // Refresh profile data (force refresh)
   Future<void> refreshProfile() async {
-    await fetchProfile();
+    await fetchProfile(forceRefresh: true);
   }
 
   // Save user data and log in
