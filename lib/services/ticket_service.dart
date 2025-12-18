@@ -69,6 +69,22 @@ class TicketService {
       final endpoint = ApiConfig.createOrder;
       print('Creating order at: $endpoint');
       
+      // Get auth token and validate authentication
+      final token = await UserStorage.getToken();
+      final isLoggedIn = await UserStorage.getLoginStatus();
+      
+      print('🔐 Authentication Status:');
+      print('  - Token exists: ${token != null}');
+      print('  - Is logged in: $isLoggedIn');
+      if (token != null) {
+        print('  - Token preview: ${token.substring(0, 20)}...');
+      }
+      
+      if (token == null || !isLoggedIn) {
+        print('❌ Authentication required - no valid token');
+        throw Exception('AUTHENTICATION_REQUIRED');
+      }
+      
       // Convert selectedTickets to items format with price
       final items = selectedTickets.map((ticket) {
         return {
@@ -86,17 +102,12 @@ class TicketService {
       
       print('Create Order Request Body: ${json.encode(requestBody)}');
       
-      // Get auth token
-      final token = await UserStorage.getToken();
-      final isLoggedIn = await UserStorage.getLoginStatus();
-      
-      if (token == null || !isLoggedIn) {
-        throw Exception('AUTHENTICATION_REQUIRED');
-      }
+      final headers = ApiConfig.getAuthHeaders(token);
+      print('🔐 Request Headers: ${headers.keys.join(', ')}');
       
       final response = await http.post(
         Uri.parse(endpoint),
-        headers: ApiConfig.getAuthHeaders(token),
+        headers: headers,
         body: json.encode(requestBody),
       ).timeout(const Duration(seconds: 15));
 
@@ -112,9 +123,20 @@ class TicketService {
           throw Exception(data['message'] ?? 'Order creation failed');
         }
       } else if (response.statusCode == 401) {
-        // Handle authentication error
+        // Handle authentication error - token expired or invalid
+        print('❌ 401 Unauthorized - clearing token and requiring re-authentication');
         await UserStorage.clearAll(); // Clear invalid token
         throw Exception('AUTHENTICATION_REQUIRED');
+      } else if (response.statusCode == 403) {
+        // Handle forbidden error - user doesn't have permission
+        print('❌ 403 Forbidden - insufficient permissions');
+        try {
+          final errorData = json.decode(response.body);
+          final message = errorData['message'] ?? 'Insufficient permissions to create order';
+          throw Exception('PERMISSION_DENIED: $message');
+        } catch (e) {
+          throw Exception('PERMISSION_DENIED: Insufficient permissions to create order');
+        }
       } else {
         try {
           final errorData = json.decode(response.body);

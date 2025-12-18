@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../providers/user_provider.dart';
 import '../../utils/responsive_helper.dart';
+import '../../services/host_service.dart';
 import 'success_screen.dart';
 
 class CreateScreen extends StatefulWidget {
@@ -72,28 +73,221 @@ class _CreateScreenState extends State<CreateScreen> {
   }
 
   Future<void> _submitForm() async {
-    if (!_isFormValid) return;
+    print('📝 [CreateScreen] Form submission started');
+    
+    if (!_isFormValid) {
+      print('❌ [CreateScreen] Form validation failed');
+      return;
+    }
 
+    print('✅ [CreateScreen] Form validation passed');
     setState(() {
       _isLoading = true;
     });
 
-    // Simulate API call
-    await Future.delayed(const Duration(seconds: 2));
-
-    if (mounted) {
-      setState(() {
-        _isLoading = false;
-      });
-
-      // Navigate to success screen
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (context) => const SuccessScreen(),
-        ),
+    try {
+      // Get auth token from UserProvider
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
+      final authToken = userProvider.authToken;
+      
+      print('� [CreateeScreen] Auth token available: ${authToken != null && authToken.isNotEmpty}');
+      if (authToken == null || authToken.isEmpty) {
+        print('⚠️ [CreateScreen] WARNING: No authentication token found!');
+      }
+      
+      // Format date for API (YYYY-MM-DD)
+      final formattedDate = '${_selectedDate!.year}-${_selectedDate!.month.toString().padLeft(2, '0')}-${_selectedDate!.day.toString().padLeft(2, '0')}';
+      
+      print('📅 [CreateScreen] Formatted date: $formattedDate');
+      print('📍 [CreateScreen] Locality: ${_localityController.text.trim()}');
+      print('🏙️ [CreateScreen] City: $_selectedCity');
+      print('📮 [CreateScreen] Pincode: ${_pincodeController.text.trim()}');
+      
+      final result = await HostService.submitHostRequest(
+        preferredPartyDate: formattedDate,
+        locality: _localityController.text.trim(),
+        city: _selectedCity!,
+        pincode: _pincodeController.text.trim(),
+        authToken: authToken,
       );
+
+      print('📨 [CreateScreen] API response received');
+      print('✅ [CreateScreen] Success: ${result.success}');
+      print('💬 [CreateScreen] Message: ${result.message}');
+      if (result.error != null) {
+        print('❌ [CreateScreen] Error: ${result.error}');
+      }
+      if (result.statusCode != null) {
+        print('📊 [CreateScreen] Status Code: ${result.statusCode}');
+      }
+
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+
+        if (result.success) {
+          print('🎉 [CreateScreen] Navigating to success screen');
+          // Navigate to success screen
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (context) => const SuccessScreen(),
+            ),
+          );
+        } else {
+          print('⚠️ [CreateScreen] Showing error dialog');
+          
+          // Check for specific error types and provide professional messages
+          String errorTitle = 'Request Failed';
+          String errorMessage = result.message;
+          
+          if (authToken == null || authToken.isEmpty) {
+            errorTitle = 'Authentication Required';
+            errorMessage = 'Please log in to submit a host request.';
+          } else if (result.statusCode == 401 || result.statusCode == 403) {
+            errorTitle = 'Authentication Failed';
+            errorMessage = 'Your session has expired. Please log in again.';
+          } else if (result.message.toLowerCase().contains('pending request') || 
+                     result.message.toLowerCase().contains('already have')) {
+            errorTitle = 'Request Already Submitted';
+            errorMessage = 'You already have a pending host request. Our team will review it and get back to you soon.';
+          } else if (result.message.toLowerCase().contains('duplicate')) {
+            errorTitle = 'Duplicate Request';
+            errorMessage = 'A similar request has already been submitted. Please wait for our team to review your existing request.';
+          }
+          
+          // Show error message with professional text
+          _showProfessionalErrorDialog(errorTitle, errorMessage, result.error);
+        }
+      }
+    } catch (e) {
+      print('💥 [CreateScreen] Exception in form submission: $e');
+      
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+        
+        _showProfessionalErrorDialog(
+          'Unexpected Error',
+          'Something went wrong while submitting your request. Please try again.',
+          e.toString(),
+        );
+      }
     }
   }
+
+  void _showProfessionalErrorDialog(String title, String message, String? details) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF1C1C1E),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Text(
+            title,
+            style: const TextStyle(
+              color: Colors.white, 
+              fontWeight: FontWeight.bold,
+              fontSize: 18,
+            ),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                message,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  height: 1.4,
+                ),
+              ),
+              if (details != null && details.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                Theme(
+                  data: Theme.of(context).copyWith(
+                    dividerColor: Colors.transparent,
+                  ),
+                  child: ExpansionTile(
+                    tilePadding: EdgeInsets.zero,
+                    childrenPadding: EdgeInsets.zero,
+                    title: const Text(
+                      'Technical Details',
+                      style: TextStyle(
+                        color: Color(0xFF9CA3AF), 
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    iconColor: const Color(0xFF9CA3AF),
+                    collapsedIconColor: const Color(0xFF9CA3AF),
+                    children: [
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(12),
+                        margin: const EdgeInsets.only(top: 8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF0F0F0F),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: const Color(0xFF2C2C2E),
+                            width: 1,
+                          ),
+                        ),
+                        child: Text(
+                          details,
+                          style: const TextStyle(
+                            color: Color(0xFF6B7280),
+                            fontSize: 12,
+                            fontFamily: 'monospace',
+                            height: 1.3,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ],
+          ),
+          actions: [
+            Container(
+              width: double.infinity,
+              height: 44,
+              margin: const EdgeInsets.only(top: 8),
+              child: TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                style: TextButton.styleFrom(
+                  backgroundColor: const Color(0xFF6958CA),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: const Text(
+                  'Got it',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showErrorDialog(String message, String? details) {
+    _showProfessionalErrorDialog('Request Failed', message, details);
+  }
+
+
 
   void _navigateToTerms() {
     // Navigate to terms and conditions screen
@@ -141,6 +335,38 @@ class _CreateScreenState extends State<CreateScreen> {
                         fontSize: ResponsiveHelper.getResponsiveFontSize(context, 14),
                         color: Color(0xFF9CA3AF),
                         height: 1.5,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1C1C1E),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: const Color(0xFF6958CA).withOpacity(0.3),
+                          width: 1,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.info_outline,
+                            color: const Color(0xFF6958CA),
+                            size: 20,
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              'Only registered hosts can create party requests',
+                              style: TextStyle(
+                                fontSize: ResponsiveHelper.getResponsiveFontSize(context, 13),
+                                color: const Color(0xFF6958CA),
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                 const SizedBox(height: 32),
@@ -465,6 +691,8 @@ class _CreateScreenState extends State<CreateScreen> {
     );
   }
 
+
+
   PreferredSizeWidget _buildAppBar() {
     return AppBar(
       backgroundColor: Colors.black,
@@ -474,7 +702,7 @@ class _CreateScreenState extends State<CreateScreen> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           const Text(
-            'Unrealvibes',
+            'Unrealvibe',
             style: TextStyle(
               color: Colors.white,
               fontSize: 18,

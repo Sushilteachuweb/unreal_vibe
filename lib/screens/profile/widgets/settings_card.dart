@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../providers/user_provider.dart';
@@ -113,12 +114,15 @@ class SettingsCard extends StatelessWidget {
         if (context.mounted) {
           Navigator.of(context).pop(); // Close loading dialog
           
-          // Show error message
+          // Log detailed error for developers
+          debugPrint('🚨 [SettingsCard] Logout error: $e');
+          
+          // Show user-friendly error message
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Logout failed: $e'),
+            const SnackBar(
+              content: Text('Logout failed. Please try again'),
               backgroundColor: Colors.red,
-              duration: const Duration(seconds: 3),
+              duration: Duration(seconds: 3),
             ),
           );
         }

@@ -26,6 +26,8 @@ class _HeroVideoWidgetState extends State<HeroVideoWidget> with WidgetsBindingOb
   bool _isLoading = true;
   Timer? _retryTimer;
   bool _wasPlayingBeforePause = false;
+  int _retryCount = 0;
+  static const int _maxRetries = 3;
 
   @override
   void initState() {
@@ -58,24 +60,35 @@ class _HeroVideoWidgetState extends State<HeroVideoWidget> with WidgetsBindingOb
         _controller = null;
       }
       
-      // Test if asset exists first
+      // Test if asset exists first with timeout
       try {
         final assetBundle = DefaultAssetBundle.of(context);
-        await assetBundle.load(widget.videoPath);
+        await assetBundle.load(widget.videoPath).timeout(
+          const Duration(seconds: 10),
+          onTimeout: () {
+            throw TimeoutException('Asset loading timeout', const Duration(seconds: 10));
+          },
+        );
         debugPrint('🎥 ✅ Video asset found and loaded');
       } catch (assetError) {
-        debugPrint('🎥 ❌ Video asset not found: $assetError');
-        throw Exception('Video asset not found: ${widget.videoPath}');
+        debugPrint('🎥 ❌ Video asset not found or loading failed: $assetError');
+        // Don't throw here, let the video controller handle it
+        debugPrint('🎥 Continuing with video controller initialization...');
       }
       
-      // Create controller with optimized settings
+      // Create controller with optimized settings for looping video
+      debugPrint('🎥 Creating VideoPlayerController for: ${widget.videoPath}');
       _controller = VideoPlayerController.asset(
         widget.videoPath,
         videoPlayerOptions: VideoPlayerOptions(
           mixWithOthers: false,
           allowBackgroundPlayback: false,
+          webOptions: VideoPlayerWebOptions(
+            controls: VideoPlayerWebOptionsControls.disabled(),
+          ),
         ),
       );
+      debugPrint('🎥 VideoPlayerController created successfully');
       
       if (!mounted) return;
       
@@ -86,9 +99,9 @@ class _HeroVideoWidgetState extends State<HeroVideoWidget> with WidgetsBindingOb
       
       // Initialize with timeout
       await _controller!.initialize().timeout(
-        const Duration(seconds: 15), // Increased timeout
+        const Duration(seconds: 30), // Further increased timeout
         onTimeout: () {
-          throw TimeoutException('Video initialization timeout', const Duration(seconds: 15));
+          throw TimeoutException('Video initialization timeout', const Duration(seconds: 30));
         },
       );
       
@@ -107,23 +120,46 @@ class _HeroVideoWidgetState extends State<HeroVideoWidget> with WidgetsBindingOb
             _isLoading = false;
             _hasError = false;
           });
+          _retryCount = 0; // Reset retry count on success
         }
         
-        // Configure video playback
+        // Configure video playback for seamless looping
         try {
+          // Set looping first (most important for your use case)
           await _controller!.setLooping(true);
-          await _controller!.setVolume(0.0);
+          debugPrint('🎥 ✅ Looping enabled');
           
-          // Add a delay before playing
-          await Future.delayed(const Duration(milliseconds: 200));
+          // Mute video since no audio
+          await _controller!.setVolume(0.0);
+          debugPrint('🎥 ✅ Volume muted');
+          
+          // Preload video data for smoother playback
+          await _controller!.setPlaybackSpeed(1.0);
+          
+          // Start playing with a small delay for stability
+          await Future.delayed(const Duration(milliseconds: 300));
           
           if (mounted && _controller != null && _controller!.value.isInitialized) {
             await _controller!.play();
-            debugPrint('🎥 ✅ Video is now playing successfully!');
+            debugPrint('🎥 ✅ Video is now playing and looping successfully!');
+            
+            // Ensure it's actually playing
+            if (_controller!.value.isPlaying) {
+              debugPrint('🎥 ✅ Confirmed: Video playback active');
+            }
           }
         } catch (playError) {
           debugPrint('🎥 ❌ Error starting video playback: $playError');
-          // Don't treat playback errors as fatal
+          // Don't treat playback errors as fatal, but try to recover
+          if (mounted && _controller != null) {
+            try {
+              await Future.delayed(const Duration(milliseconds: 500));
+              await _controller!.play();
+              debugPrint('🎥 ✅ Video playback recovered after error');
+            } catch (retryError) {
+              debugPrint('🎥 ❌ Failed to recover video playback: $retryError');
+            }
+          }
         }
       } else {
         debugPrint('🎥 ❌ Video controller not properly initialized');
@@ -132,12 +168,26 @@ class _HeroVideoWidgetState extends State<HeroVideoWidget> with WidgetsBindingOb
     } catch (e) {
       debugPrint('🎥 ❌ Error initializing video: $e');
       debugPrint('🎥 Error type: ${e.runtimeType}');
+      debugPrint('🎥 Retry count: $_retryCount/$_maxRetries');
       
       if (mounted) {
-        setState(() {
-          _hasError = true;
-          _isLoading = false;
-        });
+        if (_retryCount < _maxRetries) {
+          _retryCount++;
+          final retryDelay = Duration(seconds: _retryCount * 2); // Exponential backoff
+          debugPrint('🎥 Scheduling retry in ${retryDelay.inSeconds} seconds...');
+          
+          _retryTimer = Timer(retryDelay, () {
+            if (mounted) {
+              _initializeVideo();
+            }
+          });
+        } else {
+          debugPrint('🎥 Max retries reached, showing fallback');
+          setState(() {
+            _hasError = true;
+            _isLoading = false;
+          });
+        }
       }
     }
   }
@@ -181,7 +231,23 @@ class _HeroVideoWidgetState extends State<HeroVideoWidget> with WidgetsBindingOb
     
     // Handle buffering state
     if (value.isBuffering && _isInitialized) {
-      // Video is buffering, this is normal
+      debugPrint('🎥 Video is buffering...');
+    }
+    
+    // Ensure video keeps looping (additional safety check)
+    if (value.isInitialized && !value.isLooping) {
+      debugPrint('🎥 ⚠️ Looping was disabled, re-enabling...');
+      _controller!.setLooping(true);
+    }
+    
+    // Handle video completion (shouldn't happen with looping, but just in case)
+    if (value.position >= value.duration && value.duration > Duration.zero) {
+      debugPrint('🎥 Video reached end, ensuring it loops...');
+      if (!value.isLooping) {
+        _controller!.setLooping(true);
+        _controller!.seekTo(Duration.zero);
+        _controller!.play();
+      }
     }
   }
 
@@ -237,10 +303,10 @@ class _HeroVideoWidgetState extends State<HeroVideoWidget> with WidgetsBindingOb
             try {
               // Check if controller is still valid and initialized
               if (_controller!.value.isInitialized) {
-                if (_wasPlayingBeforePause) {
-                  debugPrint('🎥 Resuming video playback');
-                  _controller!.play();
-                }
+                // Always resume looping video regardless of previous state
+                debugPrint('🎥 Resuming looping video playback');
+                _controller!.setLooping(true); // Ensure looping is still enabled
+                _controller!.play();
               } else {
                 // Controller lost initialization, reinitialize
                 debugPrint('🎥 Controller lost initialization, reinitializing...');

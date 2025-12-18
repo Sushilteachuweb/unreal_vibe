@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../saved_events_screen.dart';
 
 class AdditionalOptionsCard extends StatelessWidget {
   const AdditionalOptionsCard({Key? key}) : super(key: key);
@@ -13,7 +14,14 @@ class AdditionalOptionsCard extends StatelessWidget {
       ),
       child: Column(
         children: [
-          _buildSettingsItem(Icons.bookmark, 'Saved Events', () {}),
+          _buildSettingsItem(Icons.bookmark, 'Saved Events', () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const SavedEventsScreen(),
+              ),
+            );
+          }),
           _buildDivider(),
           _buildSettingsItem(Icons.history, 'Activity History', () {}),
           _buildDivider(),

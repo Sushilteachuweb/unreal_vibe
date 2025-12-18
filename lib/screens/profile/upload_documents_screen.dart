@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
@@ -76,11 +77,14 @@ class _UploadDocumentsScreenState extends State<UploadDocumentsScreen> {
       }
     } catch (e) {
       if (mounted) {
+        // Log detailed error for developers
+        debugPrint('🚨 [UploadDocuments] Image selection error: $e');
+        
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: ${e.toString()}'),
+          const SnackBar(
+            content: Text('Failed to select image. Please try again'),
             backgroundColor: Colors.red,
-            duration: const Duration(seconds: 3),
+            duration: Duration(seconds: 3),
           ),
         );
       }
@@ -212,12 +216,15 @@ class _UploadDocumentsScreenState extends State<UploadDocumentsScreen> {
       // Close loading dialog
       Navigator.of(context).pop();
 
-      // Show error message
+      // Log detailed error for developers
+      debugPrint('🚨 [UploadDocuments] Profile completion error: $e');
+      
+      // Show user-friendly error message
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error: ${e.toString()}'),
+        const SnackBar(
+          content: Text('Failed to complete profile. Please try again'),
           backgroundColor: Colors.red,
-          duration: const Duration(seconds: 3),
+          duration: Duration(seconds: 3),
         ),
       );
     }
@@ -330,10 +337,13 @@ class _UploadDocumentsScreenState extends State<UploadDocumentsScreen> {
       // Close loading indicator
       Navigator.of(context).pop();
       
-      // Show error but still navigate to profile
+      // Log detailed error for developers
+      debugPrint('🚨 [UploadDocuments] Profile refresh error: $e');
+      
+      // Show user-friendly error but still navigate to profile
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Could not refresh profile: $e'),
+        const SnackBar(
+          content: Text('Could not refresh profile data'),
           backgroundColor: Colors.orange,
         ),
       );

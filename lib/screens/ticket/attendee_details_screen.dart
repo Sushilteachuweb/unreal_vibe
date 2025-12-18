@@ -6,6 +6,7 @@ import '../../models/attendee_model.dart';
 import '../../services/ticket_service.dart';
 import '../../services/dummy_razorpay_service.dart';
 import '../../services/user_storage.dart';
+import '../../services/auth_service.dart';
 import '../../services/test_auth_helper.dart';
 import '../../models/purchased_ticket_model.dart';
 import 'ticket_confirmation_screen.dart';
@@ -154,9 +155,30 @@ class _AttendeeDetailsScreenState extends State<AttendeeDetailsScreen> {
     final isLoggedIn = await UserStorage.getLoginStatus();
     final token = await UserStorage.getToken();
     
+    print('🔐 Pre-order Authentication Check:');
+    print('  - Is logged in: $isLoggedIn');
+    print('  - Token exists: ${token != null}');
+    
     if (!isLoggedIn || token == null) {
+      print('❌ Authentication required - redirecting to login');
       _showAuthenticationDialog();
       return;
+    }
+    
+    // Optional: Test token validity before proceeding
+    // This is a soft check - if it fails, we'll still try the order
+    // and let the actual API handle authentication errors
+    try {
+      final isTokenValid = await AuthService.isTokenValid();
+      if (!isTokenValid) {
+        print('⚠️ Token validation failed - will attempt order anyway');
+        // Don't return here - let the order API handle it
+      } else {
+        print('✅ Token validation passed');
+      }
+    } catch (e) {
+      print('⚠️ Token validation check failed: $e - proceeding anyway');
+      // Continue with order creation
     }
 
     // Save current form state before validation
@@ -350,6 +372,13 @@ class _AttendeeDetailsScreenState extends State<AttendeeDetailsScreen> {
           return;
         }
         
+        // Handle permission errors
+        if (e.toString().contains('PERMISSION_DENIED')) {
+          errorMessage = 'Your account does not have permission to create orders. Please contact support or try logging in again.';
+          _showAuthenticationDialog();
+          return;
+        }
+        
         // Handle specific API errors
         if (e.toString().contains('pass not available')) {
           errorMessage = 'Selected tickets are no longer available. Please try different tickets.';
@@ -363,6 +392,8 @@ class _AttendeeDetailsScreenState extends State<AttendeeDetailsScreen> {
           if (match != null) {
             errorMessage = 'Booking failed. Please check ticket availability and try again.';
           }
+        } else if (e.toString().contains('Insufficient permissions')) {
+          errorMessage = 'Your account does not have permission to create orders. Please try logging in again or contact support.';
         }
         
         ScaffoldMessenger.of(context).showSnackBar(

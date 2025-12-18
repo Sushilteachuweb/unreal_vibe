@@ -450,89 +450,113 @@ class TicketsScreen extends StatelessWidget {
     );
   }
 
-  String _formatQrCodeData(PurchasedTicket ticket) {
+  String _formatQrCodeData(PurchasedTicket ticket, {bool humanReadable = true}) {
     try {
       // Try to parse the JSON QR code data
       final qrJson = json.decode(ticket.qrCode);
       
-      // Create a structured, scannable QR code content
-      // Using a format that's both machine-readable and human-readable
-      final Map<String, dynamic> qrData = {
-        'ticketNumber': qrJson['ticketNumber'] ?? ticket.ticketNumber,
-        'bookingId': qrJson['bookingId'] ?? ticket.bookingId,
-        'eventId': qrJson['eventId'] ?? ticket.eventId,
-        'eventName': event.title,
-        'attendeeName': qrJson['attendeeName'] ?? ticket.attendee.fullName,
-        'attendeeEmail': ticket.attendee.email,
-        'attendeePhone': ticket.attendee.phone,
-        'passType': qrJson['passType'] ?? ticket.ticketType,
-        'gender': ticket.attendee.gender,
-        'price': ticket.price.toInt(),
-        'status': ticket.status.toUpperCase(),
-        'eventDate': event.date,
-        'eventLocation': event.location,
-        'scanInstructions': 'Show this QR code at venue for entry verification'
-      };
+      if (humanReadable) {
+        // Create human-readable QR code content that looks good when scanned
+        final readableData = '''🎫 EVENT TICKET 🎫
 
-      // Convert to JSON string for machine readability
-      final jsonString = json.encode(qrData);
-      print('🔍 Structured QR Data (JSON): $jsonString');
-      
-      // Also create a human-readable version for manual verification
-      final readableData = '''
-═══════════════════════════════
-        TICKET VERIFICATION
-═══════════════════════════════
-EVENT: ${event.title}
-DATE: ${event.date}
-LOCATION: ${event.location}
+📅 EVENT: ${event.title}
+📍 VENUE: ${event.location}
+🗓️ DATE: ${event.date}
 
-TICKET: ${qrData['ticketNumber']}
-TYPE: ${qrData['passType']} (₹${qrData['price']})
-STATUS: ${qrData['status']}
+🎟️ TICKET: ${qrJson['ticketNumber'] ?? ticket.ticketNumber}
+💳 TYPE: ${qrJson['passType'] ?? ticket.ticketType}
+💰 PRICE: ₹${ticket.price.toInt()}
+✅ STATUS: ${ticket.status.toUpperCase()}
 
-ATTENDEE: ${qrData['attendeeName']}
-GENDER: ${qrData['gender']}
-EMAIL: ${qrData['attendeeEmail']}
-PHONE: ${qrData['attendeePhone']}
+👤 ATTENDEE: ${qrJson['attendeeName'] ?? ticket.attendee.fullName}
+⚧️ GENDER: ${ticket.attendee.gender}
+📧 EMAIL: ${ticket.attendee.email}
+📱 PHONE: ${ticket.attendee.phone}
 
-BOOKING ID: ${qrData['bookingId']}
-EVENT ID: ${qrData['eventId']}
+🔖 BOOKING ID: ${qrJson['bookingId'] ?? ticket.bookingId}
 
-${qrData['scanInstructions']}
-═══════════════════════════════''';
+🚪 Show this QR code at venue entrance for verification
+🔋 Keep phone screen bright for better scanning''';
 
-      print('🔍 Human-Readable QR Data: $readableData');
-      
-      // Return JSON for better machine processing, but log both formats
-      return jsonString;
+        print('🔍 Human-Readable QR Data: $readableData');
+        return readableData;
+      } else {
+        // Create structured JSON for machine processing
+        final Map<String, dynamic> qrData = {
+          'ticketNumber': qrJson['ticketNumber'] ?? ticket.ticketNumber,
+          'bookingId': qrJson['bookingId'] ?? ticket.bookingId,
+          'eventId': qrJson['eventId'] ?? ticket.eventId,
+          'eventName': event.title,
+          'attendeeName': qrJson['attendeeName'] ?? ticket.attendee.fullName,
+          'attendeeEmail': ticket.attendee.email,
+          'attendeePhone': ticket.attendee.phone,
+          'passType': qrJson['passType'] ?? ticket.ticketType,
+          'gender': ticket.attendee.gender,
+          'price': ticket.price.toInt(),
+          'status': ticket.status.toUpperCase(),
+          'eventDate': event.date,
+          'eventLocation': event.location,
+          'scanInstructions': 'Show this QR code at venue for entry verification'
+        };
+
+        final jsonString = json.encode(qrData);
+        print('🔍 Machine-Readable QR Data (JSON): $jsonString');
+        return jsonString;
+      }
       
     } catch (e) {
       print('❌ Failed to parse QR JSON, using fallback format: $e');
       print('❌ Original QR Code: ${ticket.qrCode}');
       
-      // Fallback: Create structured JSON with available data
-      final fallbackData = {
-        'ticketNumber': ticket.ticketNumber,
-        'bookingId': ticket.bookingId,
-        'eventId': ticket.eventId,
-        'eventName': event.title,
-        'attendeeName': ticket.attendee.fullName,
-        'attendeeEmail': ticket.attendee.email,
-        'attendeePhone': ticket.attendee.phone,
-        'passType': ticket.ticketType,
-        'gender': ticket.attendee.gender,
-        'price': ticket.price.toInt(),
-        'status': ticket.status.toUpperCase(),
-        'eventDate': event.date,
-        'eventLocation': event.location,
-        'scanInstructions': 'Show this QR code at venue for entry verification',
-        'originalQrData': ticket.qrCode // Include original for debugging
-      };
+      if (humanReadable) {
+        // Fallback: Create human-readable format with available data
+        final fallbackData = '''🎫 EVENT TICKET 🎫
 
-      final fallbackJson = json.encode(fallbackData);
-      print('🔍 Fallback QR Data (JSON): $fallbackJson');
-      return fallbackJson;
+📅 EVENT: ${event.title}
+📍 VENUE: ${event.location}
+🗓️ DATE: ${event.date}
+
+🎟️ TICKET: ${ticket.ticketNumber}
+💳 TYPE: ${ticket.ticketType}
+💰 PRICE: ₹${ticket.price.toInt()}
+✅ STATUS: ${ticket.status.toUpperCase()}
+
+👤 ATTENDEE: ${ticket.attendee.fullName}
+⚧️ GENDER: ${ticket.attendee.gender}
+📧 EMAIL: ${ticket.attendee.email}
+📱 PHONE: ${ticket.attendee.phone}
+
+🔖 BOOKING ID: ${ticket.bookingId}
+
+🚪 Show this QR code at venue entrance for verification
+🔋 Keep phone screen bright for better scanning''';
+
+        print('🔍 Fallback Human-Readable QR Data: $fallbackData');
+        return fallbackData;
+      } else {
+        // Fallback JSON format
+        final fallbackData = {
+          'ticketNumber': ticket.ticketNumber,
+          'bookingId': ticket.bookingId,
+          'eventId': ticket.eventId,
+          'eventName': event.title,
+          'attendeeName': ticket.attendee.fullName,
+          'attendeeEmail': ticket.attendee.email,
+          'attendeePhone': ticket.attendee.phone,
+          'passType': ticket.ticketType,
+          'gender': ticket.attendee.gender,
+          'price': ticket.price.toInt(),
+          'status': ticket.status.toUpperCase(),
+          'eventDate': event.date,
+          'eventLocation': event.location,
+          'scanInstructions': 'Show this QR code at venue for entry verification',
+          'originalQrData': ticket.qrCode
+        };
+
+        final fallbackJson = json.encode(fallbackData);
+        print('🔍 Fallback Machine-Readable QR Data (JSON): $fallbackJson');
+        return fallbackJson;
+      }
     }
   }
 

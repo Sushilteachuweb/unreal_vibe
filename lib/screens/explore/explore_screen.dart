@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../models/event_model.dart';
@@ -5,7 +6,7 @@ import '../home/event_card.dart';
 import '../home/event_details_screen.dart';
 import '../../providers/user_provider.dart';
 import '../../providers/event_provider.dart';
-import '../search/search_screen.dart';
+import '../../services/event_service.dart';
 import '../../widgets/skeleton_loading.dart';
 
 class ExploreScreen extends StatefulWidget {
@@ -17,19 +18,83 @@ class ExploreScreen extends StatefulWidget {
 
 class _ExploreScreenState extends State<ExploreScreen> {
   String selectedCategory = 'All';
-  final List<String> categories = ['All', 'Art', 'Music', 'Sport', 'Comedy'];
+  final TextEditingController _searchController = TextEditingController();
+  List<Event> _searchResults = [];
+  bool _isSearching = false;
+  String _searchQuery = '';
 
   @override
   void initState() {
     super.initState();
     // Only fetch events if needed (no cache or cache expired)
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<EventProvider>().fetchEventsIfNeeded();
+      final eventProvider = context.read<EventProvider>();
+      eventProvider.fetchEventsIfNeeded();
+      eventProvider.fetchTrendingEventsIfNeeded();
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _performSearch(String query) async {
+    if (query.trim().isEmpty) {
+      setState(() {
+        _searchResults = [];
+        _isSearching = false;
+        _searchQuery = '';
+      });
+      return;
+    }
+
+    setState(() {
+      _isSearching = true;
+      _searchQuery = query;
+    });
+
+    try {
+      final results = await EventService.searchEvents(query);
+      setState(() {
+        _searchResults = results;
+        _isSearching = false;
+      });
+    } catch (e) {
+      setState(() {
+        _searchResults = [];
+        _isSearching = false;
+      });
+      if (mounted) {
+        // Log detailed error for developers
+        debugPrint('🚨 [ExploreScreen] Search error: $e');
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Search failed. Please try again'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  void _clearSearch() {
+    _searchController.clear();
+    setState(() {
+      _searchResults = [];
+      _isSearching = false;
+      _searchQuery = '';
     });
   }
 
   Future<void> _onRefresh() async {
-    await context.read<EventProvider>().fetchEvents(forceRefresh: true);
+    final eventProvider = context.read<EventProvider>();
+    await Future.wait([
+      eventProvider.fetchEvents(forceRefresh: true),
+      eventProvider.fetchTrendingEvents(forceRefresh: true),
+    ]);
   }
 
   Widget _buildSkeletonLoading() {
@@ -135,7 +200,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
     return Consumer<EventProvider>(
       builder: (context, eventProvider, child) {
         final trendingEvents = eventProvider.trendingEvents;
-        final filteredEvents = eventProvider.getEventsByCategory(selectedCategory);
+        final filteredEvents = eventProvider.getFilteredEvents(selectedCategory);
 
         return _buildExploreContent(context, eventProvider, trendingEvents, filteredEvents);
       },
@@ -202,18 +267,24 @@ class _ExploreScreenState extends State<ExploreScreen> {
                           
                           const SizedBox(height: 16),
                           
-                          // Category Chips
-                          _buildCategoryChips(),
-                          
-                          const SizedBox(height: 20),
-                          
-                          // Trending Near You
-                          _buildTrendingSection(trendingEvents),
-                          
-                          const SizedBox(height: 24),
-                          
-                          // Upcoming Events
-                          _buildUpcomingEventsSection(filteredEvents),
+                          // Show search results or normal content
+                          if (_searchQuery.isNotEmpty) ...[
+                            const SizedBox(height: 16),
+                            _buildSearchResults(),
+                          ] else ...[
+                            // Category Chips
+                            _buildCategoryChips(),
+                            
+                            const SizedBox(height: 20),
+                            
+                            // Trending Near You
+                            _buildTrendingSection(trendingEvents),
+                            
+                            const SizedBox(height: 24),
+                            
+                            // Upcoming Events
+                            _buildUpcomingEventsSection(filteredEvents),
+                          ],
                           
                           const SizedBox(height: 100),
                         ],
@@ -267,40 +338,58 @@ class _ExploreScreenState extends State<ExploreScreen> {
   Widget _buildSearchBar() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: GestureDetector(
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const SearchScreen(),
+      child: Container(
+        decoration: BoxDecoration(
+          color: const Color(0xFF1A1A1A),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: TextField(
+          controller: _searchController,
+          onChanged: (value) {
+            if (value.isEmpty) {
+              _clearSearch();
+            }
+          },
+          onSubmitted: _performSearch,
+          style: const TextStyle(color: Colors.white),
+          decoration: InputDecoration(
+            hintText: 'Search for artists, events, places...',
+            hintStyle: TextStyle(
+              color: Colors.grey[600],
+              fontSize: 14,
             ),
-          );
-        },
-        child: Container(
-          decoration: BoxDecoration(
-            color: const Color(0xFF1A1A1A),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: IgnorePointer(
-            child: TextField(
-              style: const TextStyle(color: Colors.white),
-              decoration: InputDecoration(
-                hintText: 'Search for artists, events, places...',
-                hintStyle: TextStyle(
-                  color: Colors.grey[600],
-                  fontSize: 14,
-                ),
-                prefixIcon: Icon(
-                  Icons.search,
-                  color: Colors.grey[600],
-                  size: 20,
-                ),
-                border: InputBorder.none,
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
-                ),
-              ),
+            prefixIcon: Icon(
+              Icons.search,
+              color: Colors.grey[600],
+              size: 20,
+            ),
+            suffixIcon: _searchController.text.isNotEmpty
+                ? Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        icon: Icon(
+                          Icons.send,
+                          color: Colors.grey[600],
+                          size: 20,
+                        ),
+                        onPressed: () => _performSearch(_searchController.text),
+                      ),
+                      IconButton(
+                        icon: Icon(
+                          Icons.clear,
+                          color: Colors.grey[600],
+                          size: 20,
+                        ),
+                        onPressed: _clearSearch,
+                      ),
+                    ],
+                  )
+                : null,
+            border: InputBorder.none,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 12,
             ),
           ),
         ),
@@ -311,43 +400,49 @@ class _ExploreScreenState extends State<ExploreScreen> {
   Widget _buildCategoryChips() {
     return SizedBox(
       height: 36,
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        itemCount: categories.length,
-        itemBuilder: (context, index) {
-          final category = categories[index];
-          final isSelected = category == selectedCategory;
+      child: Consumer<EventProvider>(
+        builder: (context, eventProvider, child) {
+          final availableCategories = eventProvider.getAvailableCategories();
           
-          return Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: GestureDetector(
-              onTap: () {
-                setState(() {
-                  selectedCategory = category;
-                });
-              },
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
-                  color: isSelected ? const Color(0xFF6958CA) : const Color(0xFF1A1A1A),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Center(
-                  child: Text(
-                    category,
-                    style: TextStyle(
-                      color: isSelected ? Colors.white : Colors.grey[400],
-                      fontSize: 14,
-                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+          return ListView.builder(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            itemCount: availableCategories.length,
+            itemBuilder: (context, index) {
+              final category = availableCategories[index];
+              final isSelected = category == selectedCategory;
+              
+              return Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      selectedCategory = category;
+                    });
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: isSelected ? const Color(0xFF6958CA) : const Color(0xFF1A1A1A),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Center(
+                      child: Text(
+                        category,
+                        style: TextStyle(
+                          color: isSelected ? Colors.white : Colors.grey[400],
+                          fontSize: 14,
+                          fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                        ),
+                      ),
                     ),
                   ),
                 ),
-              ),
-            ),
+              );
+            },
           );
         },
       ),
@@ -480,6 +575,119 @@ class _ExploreScreenState extends State<ExploreScreen> {
               );
             },
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSearchResults() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Text(
+                'Search Results',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(width: 8),
+              if (_searchQuery.isNotEmpty)
+                Text(
+                  'for "$_searchQuery"',
+                  style: TextStyle(
+                    color: Colors.grey[400],
+                    fontSize: 14,
+                  ),
+                ),
+              const Spacer(),
+              TextButton(
+                onPressed: _clearSearch,
+                child: const Text(
+                  'Clear',
+                  style: TextStyle(
+                    color: Color(0xFF6958CA),
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          if (_isSearching)
+            const Center(
+              child: CircularProgressIndicator(
+                color: Color(0xFF6958CA),
+              ),
+            )
+          else if (_searchResults.isEmpty)
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.all(32.0),
+                child: Column(
+                  children: [
+                    Icon(
+                      Icons.search_off,
+                      size: 48,
+                      color: Colors.grey[600],
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'No events found',
+                      style: TextStyle(
+                        color: Colors.grey[400],
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Try searching with different keywords',
+                      style: TextStyle(
+                        color: Colors.grey[600],
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          else
+            ListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: _searchResults.length,
+              itemBuilder: (context, index) {
+                final event = _searchResults[index];
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  child: EventCard(
+                    title: event.title,
+                    subtitle: event.subtitle,
+                    date: event.date,
+                    location: event.location,
+                    coverCharge: event.coverCharge,
+                    imageUrl: event.imageUrl,
+                    tags: event.tags,
+                    isHorizontal: false,
+                    status: event.status,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => EventDetailsScreen(event: event),
+                        ),
+                      );
+                    },
+                  ),
+                );
+              },
+            ),
         ],
       ),
     );

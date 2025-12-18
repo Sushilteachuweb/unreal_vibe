@@ -16,6 +16,13 @@ class ApiConfig {
   
   // Event endpoints
   static const String getEvents = "$baseUrl/event/events";
+  static const String getTrendingEvents = "$baseUrl/event/events?trendingOnly=true";
+  static const String searchEvents = "$baseUrl/event/search";
+  static const String filterEvents = "$baseUrl/event/filter";
+  static String shareEvent(String eventId) => "$baseUrl/event/$eventId/share";
+  static String saveEvent(String eventId) => "$baseUrl/event/$eventId/save";
+  static const String getSavedEvents = "$baseUrl/event/saved-events";
+  static String submitReview(String eventId) => "$baseUrl/event/$eventId/reviews";
   
   // Ticket/Passes endpoints
   static String getEventPasses(String eventId) => "$baseUrl/passes/$eventId";
@@ -23,6 +30,14 @@ class ApiConfig {
   // Payment endpoints
   static const String createOrder = "$baseUrl/payment/create-order";
   static const String verifyPayment = "$baseUrl/payment/verify-payment";
+  
+  // Host endpoints
+  static const String hostRequest = "$baseUrl/host/requestinput";
+  
+  // Alternative host endpoints to try if the main one fails
+  static const String hostRequestAlt1 = "$baseUrl/host/request";
+  static const String hostRequestAlt2 = "$baseUrl/host/create";
+  static const String hostRequestAlt3 = "$baseUrl/host/submit";
   
   // Headers
   static Map<String, String> get headers => {

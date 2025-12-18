@@ -6,6 +6,65 @@ import 'api_routes.dart';
 import 'user_storage.dart';
 
 class AuthService {
+  // Test token validity by making a simple authenticated request
+  static Future<bool> isTokenValid() async {
+    try {
+      final token = await UserStorage.getToken();
+      if (token == null) {
+        print('🔐 No token found');
+        return false;
+      }
+      
+      print('🔐 Testing token validity...');
+      
+      // Try multiple endpoints to test token validity
+      final endpoints = [
+        ApiConfig.getProfile,
+        ApiConfig.profile,
+        ApiConfig.getSavedEvents, // This requires auth and should work
+      ];
+      
+      for (final endpoint in endpoints) {
+        try {
+          print('🔐 Testing endpoint: $endpoint');
+          
+          final response = await http.get(
+            Uri.parse(endpoint),
+            headers: ApiConfig.getAuthHeaders(token),
+          ).timeout(const Duration(seconds: 5));
+          
+          print('🔐 Response: ${response.statusCode}');
+          
+          // Check for clear authentication/authorization errors
+          if (response.statusCode == 401) {
+            print('❌ Token is expired (401 Unauthorized)');
+            await UserStorage.clearAll(); // Clear invalid token
+            return false;
+          } else if (response.statusCode == 403) {
+            print('❌ Token has insufficient permissions (403 Forbidden)');
+            await UserStorage.clearAll(); // Clear invalid token
+            return false;
+          } else if (response.statusCode == 200) {
+            print('✅ Token is valid (200 OK)');
+            return true;
+          }
+          // Continue to next endpoint if this one doesn't work
+        } catch (e) {
+          print('🔐 Error testing endpoint $endpoint: $e');
+          continue;
+        }
+      }
+      
+      print('⚠️ All validation endpoints failed - assuming token is valid');
+      print('⚠️ Will let the actual order API handle authentication');
+      return true; // Assume valid if we can't test properly
+      
+    } catch (e) {
+      print('🔐 Token validation error: $e');
+      return true; // Assume valid and let order API handle it
+    }
+  }
+
   // Request OTP
   static Future<Map<String, dynamic>> requestOtp(String phoneNumber) async {
     try {
