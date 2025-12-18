@@ -267,7 +267,7 @@ class Event {
       location: json['city'] ?? 'Unknown Location',
       fullAddress: json['fullAddress'] ?? '',
       city: json['city'] ?? '',
-      coverCharge: '₹ ${json['entryFees'] ?? 0}',
+      coverCharge: _formatCoverCharge(json),
       imageUrl: imageUrl,
       tags: tags,
       isTrending: json['trending'] ?? false,
@@ -275,7 +275,7 @@ class Event {
       time: json['time'],
       ageRestriction: json['ageRestriction'],
       genderPreference: json['genderPreference'],
-      entryFee: '₹ ${json['entryFees'] ?? 0}',
+      entryFee: _formatCoverCharge(json),
       aboutParty: json['about'],
       partyFlow: json['partyFlow'],
       thingsToKnow: json['thingsToKnow'],
@@ -306,6 +306,32 @@ class Event {
       femaleTicketPrice: json['femaleTicketPrice'] ?? '₹ 1200',
       coupleTicketPrice: json['coupleTicketPrice'] ?? '₹ 2500',
     );
+  }
+
+  // Helper method to format cover charge from different possible fields
+  static String _formatCoverCharge(Map<String, dynamic> json) {
+    // Try entryFees first (legacy)
+    if (json['entryFees'] != null) {
+      return '₹ ${json['entryFees']}';
+    }
+    
+    // Try passes array (new format)
+    if (json['passes'] != null && json['passes'] is List && (json['passes'] as List).isNotEmpty) {
+      final passes = json['passes'] as List;
+      final prices = passes.map((pass) => pass['price'] ?? 0).where((price) => price > 0).toList();
+      
+      if (prices.isNotEmpty) {
+        prices.sort();
+        if (prices.length == 1) {
+          return '₹ ${prices.first}';
+        } else {
+          return '₹ ${prices.first} - ${prices.last}';
+        }
+      }
+    }
+    
+    // Default fallback
+    return 'Free';
   }
 
 

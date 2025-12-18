@@ -7,6 +7,7 @@ import '../home/event_details_screen.dart';
 import '../../providers/user_provider.dart';
 import '../../providers/event_provider.dart';
 import '../../services/event_service.dart';
+import '../../services/search_service.dart';
 import '../../widgets/skeleton_loading.dart';
 
 class ExploreScreen extends StatefulWidget {
@@ -56,7 +57,11 @@ class _ExploreScreenState extends State<ExploreScreen> {
     });
 
     try {
-      final results = await EventService.searchEvents(query);
+      // Get user's city from UserProvider
+      final userProvider = context.read<UserProvider>();
+      final userCity = userProvider.user?.city ?? 'Delhi'; // Default to Delhi if no city set
+      
+      final results = await SearchService.searchInCity(query, userCity);
       setState(() {
         _searchResults = results;
         _isSearching = false;
@@ -588,24 +593,32 @@ class _ExploreScreenState extends State<ExploreScreen> {
         children: [
           Row(
             children: [
-              const Text(
-                'Search Results',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
+              Expanded(
+                child: Row(
+                  children: [
+                    const Text(
+                      'Search Results',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    if (_searchQuery.isNotEmpty)
+                      Flexible(
+                        child: Text(
+                          'for "$_searchQuery"',
+                          style: TextStyle(
+                            color: Colors.grey[400],
+                            fontSize: 14,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                  ],
                 ),
               ),
-              const SizedBox(width: 8),
-              if (_searchQuery.isNotEmpty)
-                Text(
-                  'for "$_searchQuery"',
-                  style: TextStyle(
-                    color: Colors.grey[400],
-                    fontSize: 14,
-                  ),
-                ),
-              const Spacer(),
               TextButton(
                 onPressed: _clearSearch,
                 child: const Text(
@@ -653,6 +666,51 @@ class _ExploreScreenState extends State<ExploreScreen> {
                         fontSize: 14,
                       ),
                     ),
+                    // Debug info
+                    if (kDebugMode) ...[
+                      const SizedBox(height: 16),
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.red.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Column(
+                          children: [
+                            Text(
+                              'DEBUG INFO',
+                              style: TextStyle(
+                                color: Colors.red,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Query: "$_searchQuery"',
+                              style: TextStyle(
+                                color: Colors.red,
+                                fontSize: 10,
+                              ),
+                            ),
+                            Text(
+                              'Results: ${_searchResults.length}',
+                              style: TextStyle(
+                                color: Colors.red,
+                                fontSize: 10,
+                              ),
+                            ),
+                            Text(
+                              'Searching: $_isSearching',
+                              style: TextStyle(
+                                color: Colors.red,
+                                fontSize: 10,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),

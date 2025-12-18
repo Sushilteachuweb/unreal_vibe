@@ -133,6 +133,7 @@ class PaymentSuccessScreen extends StatelessWidget {
                         ),
                       ),
                       child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const Icon(
                             Icons.info_outline,
@@ -147,6 +148,7 @@ class PaymentSuccessScreen extends StatelessWidget {
                                 color: Colors.grey[300],
                                 fontSize: 14,
                               ),
+                              softWrap: true,
                             ),
                           ),
                         ],
@@ -234,6 +236,7 @@ class PaymentSuccessScreen extends StatelessWidget {
 
   Widget _buildDetailRow(String label, String value, IconData icon) {
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Container(
           width: 40,
@@ -259,6 +262,7 @@ class PaymentSuccessScreen extends StatelessWidget {
                   color: Color(0xFF9CA3AF),
                   fontSize: 14,
                 ),
+                overflow: TextOverflow.ellipsis,
               ),
               const SizedBox(height: 2),
               Text(
@@ -268,6 +272,8 @@ class PaymentSuccessScreen extends StatelessWidget {
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
                 ),
+                overflow: TextOverflow.ellipsis,
+                maxLines: 2,
               ),
             ],
           ),

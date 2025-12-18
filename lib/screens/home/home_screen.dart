@@ -11,6 +11,7 @@ import '../../providers/user_provider.dart';
 import '../../providers/event_provider.dart';
 import '../../utils/api_debug.dart';
 import '../../services/event_service.dart';
+import '../../services/search_service.dart';
 import '../../widgets/skeleton_loading.dart';
 import '../../widgets/hero_video_widget.dart';
 import '../../widgets/filter_bottom_sheet.dart';
@@ -63,11 +64,25 @@ class _HomeScreenState extends State<HomeScreen> {
     });
 
     try {
-      final results = await EventService.searchEvents(query);
+      // Get user's city from UserProvider
+      final userProvider = context.read<UserProvider>();
+      final userCity = userProvider.user?.city ?? 'Delhi'; // Default to Delhi if no city set
+      
+      print('🔍 [HomeScreen] Starting search - Query: "$query", City: "$userCity"');
+      
+      final results = await SearchService.searchInCity(query, userCity);
+      
+      print('🔍 [HomeScreen] Search completed - Found ${results.length} results');
+      if (results.isNotEmpty) {
+        print('   First result: ${results.first.title}');
+      }
+      
       setState(() {
         _searchResults = results;
         _isSearching = false;
       });
+      
+      print('🔍 [HomeScreen] UI updated - _searchResults.length: ${_searchResults.length}');
     } catch (e) {
       setState(() {
         _searchResults = [];
@@ -184,7 +199,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     // Filter tags skeleton
                     SizedBox(
                       height: 36,
-                      child: Row(
+                      child: ListView(
+                        scrollDirection: Axis.horizontal,
                         children: [
                           const SkeletonLoading(width: 60, height: 36, borderRadius: BorderRadius.all(Radius.circular(18))),
                           const SizedBox(width: 8),
@@ -315,14 +331,21 @@ class _HomeScreenState extends State<HomeScreen> {
                                   // Search bar with padding
                                   Padding(
                                     padding: EdgeInsets.symmetric(horizontal: padding),
-                                    child: CustomSearchBar(
-                                      controller: _searchController,
-                                      onChanged: (value) {
-                                        if (value.isEmpty) {
-                                          _clearSearch();
-                                        }
+                                    child: Consumer<UserProvider>(
+                                      builder: (context, userProvider, child) {
+                                        final userCity = userProvider.user?.city ?? 'Delhi';
+                                        return CustomSearchBar(
+                                          controller: _searchController,
+                                          userCity: userCity,
+                                          showSuggestions: true,
+                                          onChanged: (value) {
+                                            if (value.isEmpty) {
+                                              _clearSearch();
+                                            }
+                                          },
+                                          onSearch: _performSearch,
+                                        );
                                       },
-                                      onSearch: _performSearch,
                                     ),
                                   ),
                                 ],
@@ -906,24 +929,32 @@ class _HomeScreenState extends State<HomeScreen> {
         children: [
           Row(
             children: [
-              Text(
-                'Search Results',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: ResponsiveHelper.getResponsiveFontSize(context, 18),
-                  fontWeight: FontWeight.w600,
+              Expanded(
+                child: Row(
+                  children: [
+                    Text(
+                      'Search Results',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: ResponsiveHelper.getResponsiveFontSize(context, 18),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    if (_searchQuery.isNotEmpty)
+                      Flexible(
+                        child: Text(
+                          'for "$_searchQuery"',
+                          style: TextStyle(
+                            color: Colors.grey[400],
+                            fontSize: ResponsiveHelper.getResponsiveFontSize(context, 14),
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                  ],
                 ),
               ),
-              const SizedBox(width: 8),
-              if (_searchQuery.isNotEmpty)
-                Text(
-                  'for "$_searchQuery"',
-                  style: TextStyle(
-                    color: Colors.grey[400],
-                    fontSize: ResponsiveHelper.getResponsiveFontSize(context, 14),
-                  ),
-                ),
-              const Spacer(),
               TextButton(
                 onPressed: _clearSearch,
                 child: const Text(
@@ -971,6 +1002,51 @@ class _HomeScreenState extends State<HomeScreen> {
                         fontSize: 14,
                       ),
                     ),
+                    // Debug info
+                    if (kDebugMode) ...[
+                      const SizedBox(height: 16),
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.red.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Column(
+                          children: [
+                            Text(
+                              'DEBUG INFO',
+                              style: TextStyle(
+                                color: Colors.red,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Query: "$_searchQuery"',
+                              style: TextStyle(
+                                color: Colors.red,
+                                fontSize: 10,
+                              ),
+                            ),
+                            Text(
+                              'Results: ${_searchResults.length}',
+                              style: TextStyle(
+                                color: Colors.red,
+                                fontSize: 10,
+                              ),
+                            ),
+                            Text(
+                              'Searching: $_isSearching',
+                              style: TextStyle(
+                                color: Colors.red,
+                                fontSize: 10,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),

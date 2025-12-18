@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import '../models/event_model.dart';
 import 'api_routes.dart';
 import 'user_storage.dart';
+import 'search_service.dart';
 
 class EventService {
   // Cache for saved events to avoid repeated API calls
@@ -174,44 +175,9 @@ class EventService {
     }
   }
 
-  static Future<List<Event>> searchEvents(String query) async {
-    try {
-      print('Searching events with query: $query');
-      
-      final response = await http.get(
-        Uri.parse('${ApiConfig.searchEvents}?q=${Uri.encodeComponent(query)}'),
-        headers: ApiConfig.headers,
-      ).timeout(const Duration(seconds: 10));
-
-      print('Search API Response Status: ${response.statusCode}');
-      
-      if (response.statusCode == 200) {
-        print('Search API Response Body: ${response.body}');
-        
-        try {
-          final Map<String, dynamic> data = json.decode(response.body);
-          
-          if (data['success'] == true && data['events'] != null) {
-            final List<dynamic> eventsJson = data['events'];
-            final events = eventsJson.map((eventJson) => Event.fromJson(eventJson)).toList();
-            print('Successfully found ${events.length} events for query: $query');
-            return events;
-          } else {
-            print('Invalid search response format: $data');
-            return [];
-          }
-        } catch (jsonError) {
-          print('JSON parsing error in search: $jsonError');
-          return [];
-        }
-      } else {
-        print('Search HTTP ${response.statusCode}: ${response.body}');
-        return [];
-      }
-    } catch (e) {
-      print('Error searching events: $e');
-      return [];
-    }
+  static Future<List<Event>> searchEvents(String query, {String? city}) async {
+    // Delegate to SearchService for better organization
+    return SearchService.searchEvents(query: query, city: city);
   }
 
   static Future<bool> shareEvent(String eventId) async {
