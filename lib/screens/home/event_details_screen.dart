@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
@@ -603,7 +602,7 @@ Download Unreal Vibe app to book your tickets!
                       _buildEventHeader(context),
                       _buildHostedBy(context),
                       _buildEventInfo(context),
-                      _buildActionButtons(context),
+                      _buildInterestedSection(context),
                       _buildEventDetailsInfo(context),
                       // _buildEventGallery(context),
                       _buildTicketPrices(context),
@@ -831,26 +830,174 @@ Download Unreal Vibe app to book your tickets!
     );
   }
 
+  Widget _buildInterestedSection(BuildContext context) {
+    final padding = ResponsiveHelper.getResponsivePadding(context, 16.0);
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: padding, vertical: 8),
+      child: Row(
+        children: [
+          // Interested users section
+          Expanded(
+            child: Row(
+              children: [
+                // Profile pictures stack
+                SizedBox(
+                  width: 80,
+                  height: 40,
+                  child: Stack(
+                    children: [
+                      Positioned(
+                        left: 0,
+                        child: Container(
+                          width: 32,
+                          height: 32,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.black, width: 2),
+                          ),
+                          child: ClipOval(
+                            child: Container(
+                              color: Colors.orange,
+                              child: const Icon(Icons.person, color: Colors.white, size: 16),
+                            ),
+                          ),
+                        ),
+                      ),
+                      Positioned(
+                        left: 20,
+                        child: Container(
+                          width: 32,
+                          height: 32,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.black, width: 2),
+                          ),
+                          child: ClipOval(
+                            child: Container(
+                              color: Colors.grey[600],
+                              child: const Icon(Icons.person, color: Colors.white, size: 16),
+                            ),
+                          ),
+                        ),
+                      ),
+                      Positioned(
+                        left: 40,
+                        child: Container(
+                          width: 32,
+                          height: 32,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.black, width: 2),
+                          ),
+                          child: ClipOval(
+                            child: Container(
+                              color: Colors.blue[600],
+                              child: const Icon(Icons.person, color: Colors.white, size: 16),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 12),
+                // Interested text
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '250',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: ResponsiveHelper.getResponsiveFontSize(context, 18),
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Text(
+                      'Interested',
+                      style: TextStyle(
+                        color: Colors.grey[400],
+                        fontSize: ResponsiveHelper.getResponsiveFontSize(context, 14),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          // Share Event button
+          GestureDetector(
+            onTap: _shareEvent,
+            child: Container(
+              height: 48,
+              width: 140,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFFE91E63), Color(0xFF9C27B0)],
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                ),
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(
+                    Icons.share,
+                    color: Colors.white,
+                    size: 18,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Share\nEvent',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: ResponsiveHelper.getResponsiveFontSize(context, 13),
+                      fontWeight: FontWeight.w600,
+                      height: 1.1,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
 
 
   Widget _buildEventInfo(BuildContext context) {
     final padding = ResponsiveHelper.getResponsivePadding(context, 16.0);
     return Padding(
       padding: EdgeInsets.all(padding),
-      child: Row(
+      child: Column(
         children: [
-          Expanded(
-            child: _buildInfoCard(
-              context: context,
-              icon: Icons.calendar_today,
-              title: widget.event.date,
-              subtitle: widget.event.time != null ? '${widget.event.time}' : 'Time TBA',
-            ),
+          // First row: Date and Place
+          Row(
+            children: [
+              Expanded(
+                child: _buildInfoCard(
+                  context: context,
+                  icon: Icons.calendar_today,
+                  title: widget.event.date,
+                  subtitle: widget.event.time != null ? '${widget.event.time}' : 'Time TBA',
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildInfoCard(
+                  context: context,
+                  icon: Icons.location_on,
+                  title: widget.event.location,
+                  subtitle: 'Event Location',
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: _buildLocationInfoCard(context),
-          ),
+          const SizedBox(height: 12),
         ],
       ),
     );
@@ -863,6 +1010,7 @@ Download Unreal Vibe app to book your tickets!
     required String subtitle,
   }) {
     return Container(
+      height: 80, // Increased height for all cards
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: const Color(0xFF1A1A1A),
@@ -875,6 +1023,7 @@ Download Unreal Vibe app to book your tickets!
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(
                   title,
@@ -883,13 +1032,18 @@ Download Unreal Vibe app to book your tickets!
                     fontSize: ResponsiveHelper.getResponsiveFontSize(context, 12),
                     fontWeight: FontWeight.w600,
                   ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
+                const SizedBox(height: 2),
                 Text(
                   subtitle,
                   style: TextStyle(
                     color: Colors.grey[400],
                     fontSize: ResponsiveHelper.getResponsiveFontSize(context, 10),
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
@@ -899,140 +1053,63 @@ Download Unreal Vibe app to book your tickets!
     );
   }
 
-  Widget _buildLocationInfoCard(BuildContext context) {
-    final locationString = MapsService.getBestLocationString(event);
-    final coordinatesString = MapsService.getCoordinatesString(event);
-    final hasLocationData = MapsService.hasLocationData(event);
-    
+  Widget _buildActionCard({
+    required BuildContext context,
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+    required Color backgroundColor,
+    required Color iconColor,
+  }) {
     return GestureDetector(
-      onTap: hasLocationData ? () async {
-        // Quick tap to open location
-        final success = await MapsService.openLocation(event);
-        if (!success && mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Unable to open location in maps'),
-              backgroundColor: Colors.orange,
-            ),
-          );
-        }
-      } : null,
+      onTap: onTap,
       child: Container(
+        height: 80, // Increased height for all cards
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: const Color(0xFF1A1A1A),
+          color: backgroundColor,
           borderRadius: BorderRadius.circular(12),
-          border: hasLocationData 
-              ? Border.all(color: const Color(0xFF6958CA).withOpacity(0.3), width: 1)
-              : null,
         ),
         child: Row(
           children: [
-            Icon(
-              Icons.location_on, 
-              color: hasLocationData ? const Color(0xFF6958CA) : Colors.grey[600], 
-              size: 20,
-            ),
+            Icon(icon, color: iconColor, size: 20),
             const SizedBox(width: 8),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
-                    locationString,
+                    title,
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: ResponsiveHelper.getResponsiveFontSize(context, 12),
                       fontWeight: FontWeight.w600,
                     ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      color: Colors.grey[400],
+                      fontSize: ResponsiveHelper.getResponsiveFontSize(context, 10),
+                    ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  if (coordinatesString != null) ...[
-                    Text(
-                      coordinatesString,
-                      style: TextStyle(
-                        color: Colors.grey[500],
-                        fontSize: ResponsiveHelper.getResponsiveFontSize(context, 9),
-                      ),
-                    ),
-                  ] else ...[
-                    Text(
-                      hasLocationData ? 'Tap to view on map' : 'Location not available',
-                      style: TextStyle(
-                        color: Colors.grey[400],
-                        fontSize: ResponsiveHelper.getResponsiveFontSize(context, 10),
-                      ),
-                    ),
-                  ],
                 ],
               ),
             ),
-            if (hasLocationData) ...[
-              const SizedBox(width: 4),
-              Icon(
-                Icons.open_in_new,
-                color: Colors.grey[500],
-                size: 14,
-              ),
-            ],
           ],
         ),
       ),
     );
   }
 
-  Widget _buildActionButtons(BuildContext context) {
-    final padding = ResponsiveHelper.getResponsivePadding(context, 16.0);
-    return Padding(
-      padding: EdgeInsets.symmetric(horizontal: padding),
-      child: Row(
-        children: [
-          Expanded(
-            child: ElevatedButton.icon(
-              onPressed: _getDirections,
-              icon: const Icon(Icons.directions_car, size: 18),
-              label: Text(
-                'Get Direction',
-                style: TextStyle(
-                  fontSize: ResponsiveHelper.getResponsiveFontSize(context, 14),
-                ),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF1A1A1A),
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: ElevatedButton.icon(
-              onPressed: _shareEvent,
-              icon: const Icon(Icons.share, size: 18),
-              label: Text(
-                'Share Event',
-                style: TextStyle(
-                  fontSize: ResponsiveHelper.getResponsiveFontSize(context, 14),
-                ),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF6958CA),
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+
 
   Widget _buildEventDetailsInfo(BuildContext context) {
     final padding = ResponsiveHelper.getResponsivePadding(context, 16.0);

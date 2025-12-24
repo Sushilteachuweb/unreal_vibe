@@ -1,7 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class FooterLinks extends StatelessWidget {
   const FooterLinks({Key? key}) : super(key: key);
+
+  // URL mappings for each link
+  static const Map<String, String> _linkUrls = {
+    'About Us': 'https://unrealvibe.com/#about',
+    'T&C': 'https://unrealvibe.com/terms-conditions',
+    'Privacy Policy': 'https://unrealvibe.com/privacy-policy',
+    // 'Contact Us': 'https://unrealvibe.com/',
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -16,14 +25,13 @@ class FooterLinks extends StatelessWidget {
               _buildFooterLink('Privacy Policy'),
             ],
           ),
-          const SizedBox(height: 16),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              _buildFooterLink('Contact Us'),
-              _buildFooterLink('Report a Problem'),
-            ],
-          ),
+          // const SizedBox(height: 16),
+          // Row(
+          //   mainAxisAlignment: MainAxisAlignment.center,
+          //   children: [
+          //     _buildFooterLink('Contact Us'),
+          //   ],
+          // ),
         ],
       ),
     );
@@ -31,7 +39,7 @@ class FooterLinks extends StatelessWidget {
 
   Widget _buildFooterLink(String text) {
     return InkWell(
-      onTap: () {},
+      onTap: () => _launchUrl(text),
       child: Text(
         text,
         style: const TextStyle(
@@ -41,6 +49,25 @@ class FooterLinks extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Future<void> _launchUrl(String linkText) async {
+    final url = _linkUrls[linkText];
+    if (url != null) {
+      try {
+        final uri = Uri.parse(url);
+        if (await canLaunchUrl(uri)) {
+          await launchUrl(
+            uri,
+            mode: LaunchMode.externalApplication,
+          );
+        } else {
+          print('Could not launch $url');
+        }
+      } catch (e) {
+        print('Error launching URL: $e');
+      }
+    }
   }
 }
 

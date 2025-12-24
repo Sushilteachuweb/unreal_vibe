@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../models/event_model.dart';
 import '../../services/event_service.dart';
 import '../../utils/responsive_helper.dart';
+import '../../utils/error_handler.dart';
 import '../../widgets/skeleton_loading.dart';
 import '../home/event_card.dart';
 import '../home/event_details_screen.dart';
@@ -39,12 +40,9 @@ class _SavedEventsScreenState extends State<SavedEventsScreen> {
         _isLoading = false;
       });
     } catch (e) {
-      // Log detailed error for developers
-      debugPrint('🚨 [SavedEvents] Initial load error: $e');
-      
       setState(() {
         _hasError = true;
-        _errorMessage = 'Failed to load saved events. Please try again';
+        _errorMessage = ErrorHandler.getUserFriendlyMessage(e);
         _isLoading = false;
       });
     }
@@ -63,12 +61,9 @@ class _SavedEventsScreenState extends State<SavedEventsScreen> {
         _isLoading = false;
       });
     } catch (e) {
-      // Log detailed error for developers
-      debugPrint('🚨 [SavedEvents] Refresh error: $e');
-      
       setState(() {
         _hasError = true;
-        _errorMessage = 'Failed to refresh saved events. Please try again';
+        _errorMessage = ErrorHandler.getUserFriendlyMessage(e);
         _isLoading = false;
       });
     }
@@ -117,7 +112,11 @@ class _SavedEventsScreenState extends State<SavedEventsScreen> {
     }
 
     if (_hasError) {
-      return _buildErrorState(padding);
+      return ErrorHandler.buildEmptyState(
+        context: 'saved',
+        customMessage: _errorMessage,
+        onRetry: _fetchSavedEvents,
+      );
     }
 
     if (_savedEvents.isEmpty) {

@@ -90,4 +90,28 @@ class UserStorage {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_userKey);
   }
+
+  // Referral code storage
+  static const String _referralCodeKey = 'referral_code';
+  static const String _shareCountKey = 'share_count';
+
+  static Future<void> saveReferralCode(String code) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_referralCodeKey, code);
+  }
+
+  static Future<String?> getReferralCode() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_referralCodeKey);
+  }
+
+  static Future<void> saveShareCount(int count) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_shareCountKey, count);
+  }
+
+  static Future<int?> getShareCount() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt(_shareCountKey);
+  }
 }

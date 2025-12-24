@@ -26,10 +26,19 @@ class ApiConfig {
   
   // Ticket/Passes endpoints
   static String getEventPasses(String eventId) => "$baseUrl/passes/$eventId";
+  static const String getMyPasses = "$baseUrl/passes/my-passes";
+  static String downloadTicket(String bookingId) => "$baseUrl/passes/my-passes/download/$bookingId";
   
   // Payment endpoints
   static const String createOrder = "$baseUrl/payment/create-order";
   static const String verifyPayment = "$baseUrl/payment/verify-payment";
+  
+  // Notification endpoints - Updated API structure
+  static const String getNotificationsSSE = "$baseUrl/sse/notifications"; // SSE endpoint (confirmed working)
+  static const String getNotifications = "$baseUrl/notifications"; // REST endpoint (now available)
+  static const String getNotificationsCount = "$baseUrl/notifications/count"; // Count endpoint
+  static const String markNotificationsRead = "$baseUrl/notifications/mark-read"; // Mark as read endpoint
+  static String deleteNotification(String id) => "$baseUrl/notifications/$id"; // Delete endpoint
   
   // Host endpoints
   static const String hostRequest = "$baseUrl/host/requestinput";

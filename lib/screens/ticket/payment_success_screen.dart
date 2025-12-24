@@ -37,9 +37,10 @@ class PaymentSuccessScreen extends StatelessWidget {
           child: Column(
             children: [
               Expanded(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
                     // Success Icon
                     Container(
                       width: 120,
@@ -155,6 +156,7 @@ class PaymentSuccessScreen extends StatelessWidget {
                       ),
                     ),
                   ],
+                  ),
                 ),
               ),
               

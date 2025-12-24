@@ -97,13 +97,45 @@ class _HeroVideoWidgetState extends State<HeroVideoWidget> with WidgetsBindingOb
       
       debugPrint('🎥 Starting video initialization...');
       
-      // Initialize with timeout
-      await _controller!.initialize().timeout(
-        const Duration(seconds: 30), // Further increased timeout
-        onTimeout: () {
-          throw TimeoutException('Video initialization timeout', const Duration(seconds: 30));
-        },
-      );
+      // Initialize with timeout and better error handling for APK builds
+      try {
+        await _controller!.initialize().timeout(
+          const Duration(seconds: 30), // Further increased timeout
+          onTimeout: () {
+            throw TimeoutException('Video initialization timeout', const Duration(seconds: 30));
+          },
+        );
+      } catch (initError) {
+        debugPrint('🎥 ❌ First initialization attempt failed: $initError');
+        
+        // For APK builds, try a simpler initialization approach
+        if (initError.toString().contains('timeout') || 
+            initError.toString().contains('codec') ||
+            initError.toString().contains('hardware')) {
+          debugPrint('🎥 🔄 Trying fallback initialization for APK compatibility...');
+          
+          // Dispose current controller and create a new one with minimal options
+          await _controller!.dispose();
+          
+          _controller = VideoPlayerController.asset(
+            widget.videoPath,
+            // Minimal options for better APK compatibility
+          );
+          
+          if (!mounted) return;
+          _controller!.addListener(_videoListener);
+          
+          // Try initialization again with shorter timeout
+          await _controller!.initialize().timeout(
+            const Duration(seconds: 15),
+            onTimeout: () {
+              throw TimeoutException('Fallback initialization timeout', const Duration(seconds: 15));
+            },
+          );
+        } else {
+          rethrow;
+        }
+      }
       
       if (!mounted) return;
       
@@ -123,7 +155,7 @@ class _HeroVideoWidgetState extends State<HeroVideoWidget> with WidgetsBindingOb
           _retryCount = 0; // Reset retry count on success
         }
         
-        // Configure video playback for seamless looping
+        // Configure video playback for seamless looping with APK compatibility
         try {
           // Set looping first (most important for your use case)
           await _controller!.setLooping(true);
@@ -133,32 +165,71 @@ class _HeroVideoWidgetState extends State<HeroVideoWidget> with WidgetsBindingOb
           await _controller!.setVolume(0.0);
           debugPrint('🎥 ✅ Volume muted');
           
-          // Preload video data for smoother playback
-          await _controller!.setPlaybackSpeed(1.0);
+          // Set playback speed with error handling for APK builds
+          try {
+            await _controller!.setPlaybackSpeed(1.0);
+          } catch (speedError) {
+            debugPrint('🎥 ⚠️ Could not set playback speed: $speedError');
+            // Continue without setting speed - not critical
+          }
           
-          // Start playing with a small delay for stability
-          await Future.delayed(const Duration(milliseconds: 300));
+          // Start playing with progressive delays for different device capabilities
+          await Future.delayed(const Duration(milliseconds: 500)); // Increased delay for APK builds
           
           if (mounted && _controller != null && _controller!.value.isInitialized) {
-            await _controller!.play();
-            debugPrint('🎥 ✅ Video is now playing and looping successfully!');
+            // Try to play with multiple attempts for APK compatibility
+            bool playbackStarted = false;
+            int playAttempts = 0;
+            const maxPlayAttempts = 3;
             
-            // Ensure it's actually playing
-            if (_controller!.value.isPlaying) {
-              debugPrint('🎥 ✅ Confirmed: Video playback active');
+            while (!playbackStarted && playAttempts < maxPlayAttempts && mounted) {
+              try {
+                playAttempts++;
+                debugPrint('🎥 Play attempt $playAttempts/$maxPlayAttempts');
+                
+                await _controller!.play();
+                
+                // Wait a bit and check if it's actually playing
+                await Future.delayed(const Duration(milliseconds: 200));
+                
+                if (_controller!.value.isPlaying) {
+                  playbackStarted = true;
+                  debugPrint('🎥 ✅ Video is now playing and looping successfully!');
+                } else {
+                  debugPrint('🎥 ⚠️ Play command sent but video not playing, retrying...');
+                  if (playAttempts < maxPlayAttempts) {
+                    await Future.delayed(Duration(milliseconds: 300 * playAttempts));
+                  }
+                }
+              } catch (playError) {
+                debugPrint('🎥 ❌ Play attempt $playAttempts failed: $playError');
+                if (playAttempts < maxPlayAttempts) {
+                  await Future.delayed(Duration(milliseconds: 500 * playAttempts));
+                }
+              }
+            }
+            
+            if (!playbackStarted) {
+              debugPrint('🎥 ⚠️ Could not start video playback after $maxPlayAttempts attempts');
+              // Don't throw error, just continue with fallback
             }
           }
         } catch (playError) {
-          debugPrint('🎥 ❌ Error starting video playback: $playError');
-          // Don't treat playback errors as fatal, but try to recover
-          if (mounted && _controller != null) {
-            try {
-              await Future.delayed(const Duration(milliseconds: 500));
+          debugPrint('🎥 ❌ Error configuring video playback: $playError');
+          // For APK builds, try a simpler approach
+          try {
+            debugPrint('🎥 🔄 Trying simplified playback for APK compatibility...');
+            await Future.delayed(const Duration(milliseconds: 1000));
+            
+            if (mounted && _controller != null && _controller!.value.isInitialized) {
+              await _controller!.setLooping(true);
+              await _controller!.setVolume(0.0);
               await _controller!.play();
-              debugPrint('🎥 ✅ Video playback recovered after error');
-            } catch (retryError) {
-              debugPrint('🎥 ❌ Failed to recover video playback: $retryError');
+              debugPrint('🎥 ✅ Simplified video playback started');
             }
+          } catch (fallbackError) {
+            debugPrint('🎥 ❌ Fallback playback also failed: $fallbackError');
+            // Continue without throwing - show fallback UI instead
           }
         }
       } else {
@@ -357,6 +428,53 @@ class _HeroVideoWidgetState extends State<HeroVideoWidget> with WidgetsBindingOb
     }
   }
 
+  Widget _buildFallbackContent() {
+    // Try to show a static image first, then animated background
+    return Container(
+      height: widget.height,
+      decoration: const BoxDecoration(
+        image: DecorationImage(
+          image: AssetImage('assets/images/SplashScreen.png'),
+          fit: BoxFit.cover,
+        ),
+      ),
+      child: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Colors.black.withOpacity(0.3),
+              Colors.black.withOpacity(0.7),
+            ],
+          ),
+        ),
+        child: const Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.music_note,
+                color: Colors.white,
+                size: 48,
+              ),
+              SizedBox(height: 16),
+              Text(
+                'LIVE THE VIBE',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 2,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
@@ -435,21 +553,34 @@ class _HeroVideoWidgetState extends State<HeroVideoWidget> with WidgetsBindingOb
                 ),
               )
             else if (_hasError)
-              // Enhanced animated fallback background
-              AnimatedGradientBackground(height: widget.height)
+              // Enhanced animated fallback background with static image option
+              _buildFallbackContent()
             else if (_isLoading)
               Container(
                 color: Colors.grey[900],
                 child: const Center(
-                  child: CircularProgressIndicator(
-                    color: Color(0xFF6958CA),
-                    strokeWidth: 2,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      CircularProgressIndicator(
+                        color: Color(0xFF6958CA),
+                        strokeWidth: 2,
+                      ),
+                      SizedBox(height: 16),
+                      Text(
+                        'Loading video...',
+                        style: TextStyle(
+                          color: Colors.white70,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               )
             else
               // Default animated fallback
-              AnimatedGradientBackground(height: widget.height),
+              _buildFallbackContent(),
             
             // Multi-layer gradient overlay for sophisticated blending
             Container(

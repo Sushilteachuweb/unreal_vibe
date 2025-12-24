@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../models/event_model.dart';
 import 'api_routes.dart';
+import 'user_storage.dart';
 
 class SearchService {
   /// Search events by query and city
@@ -74,9 +75,17 @@ class SearchService {
       
       print('📡 Search API URL: $url');
       
+      // Get authentication token
+      final token = await UserStorage.getToken();
+      final headers = token != null && token.isNotEmpty 
+          ? ApiConfig.getAuthHeaders(token)
+          : ApiConfig.headers;
+      
+      print('🔐 Using ${token != null ? "authenticated" : "non-authenticated"} headers');
+      
       final response = await http.get(
         Uri.parse(url),
-        headers: ApiConfig.headers,
+        headers: headers,
       ).timeout(const Duration(seconds: 15));
 
       print('📊 Search API Response Status: ${response.statusCode}');
@@ -287,9 +296,17 @@ class SearchService {
       
       print('📡 Search API URL: $url');
       
+      // Get authentication token
+      final token = await UserStorage.getToken();
+      final headers = token != null && token.isNotEmpty 
+          ? ApiConfig.getAuthHeaders(token)
+          : ApiConfig.headers;
+      
+      print('🔐 Using ${token != null ? "authenticated" : "non-authenticated"} headers');
+      
       final response = await http.get(
         Uri.parse(url),
-        headers: ApiConfig.headers,
+        headers: headers,
       ).timeout(const Duration(seconds: 15));
 
       print('📊 Search API Response Status: ${response.statusCode}');

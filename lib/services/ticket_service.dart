@@ -1,10 +1,60 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../models/ticket_model.dart';
+import '../models/my_pass_model.dart';
 import 'api_routes.dart';
 import 'user_storage.dart';
 
 class TicketService {
+  /// Fetch user's purchased passes
+  static Future<MyPassesResponse> fetchMyPasses() async {
+    try {
+      final endpoint = ApiConfig.getMyPasses;
+      print('Fetching my passes from: $endpoint');
+      
+      // Get auth token
+      final token = await UserStorage.getToken();
+      final isLoggedIn = await UserStorage.getLoginStatus();
+      
+      if (token == null || !isLoggedIn) {
+        throw Exception('AUTHENTICATION_REQUIRED');
+      }
+
+      final response = await http.get(
+        Uri.parse(endpoint),
+        headers: ApiConfig.getAuthHeaders(token),
+      ).timeout(const Duration(seconds: 10));
+
+      print('My Passes API Response Status: ${response.statusCode}');
+      print('My Passes API Response Body: ${response.body}');
+      
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> data = json.decode(response.body);
+        print('Parsed data: $data');
+        print('Success: ${data['success']}');
+        print('Passes count: ${(data['passes'] as List?)?.length ?? 0}');
+        
+        final result = MyPassesResponse.fromJson(data);
+        print('MyPassesResponse created with ${result.passes.length} passes');
+        return result;
+      } else if (response.statusCode == 401) {
+        // Handle authentication error
+        await UserStorage.clearAll();
+        throw Exception('AUTHENTICATION_REQUIRED');
+      } else {
+        try {
+          final errorData = json.decode(response.body);
+          throw Exception(errorData['message'] ?? 'Failed to fetch passes: HTTP ${response.statusCode}');
+        } catch (e) {
+          throw Exception('Failed to fetch passes: HTTP ${response.statusCode}');
+        }
+      }
+    } catch (e) {
+      print('Error fetching my passes: $e');
+      rethrow;
+    }
+  }
+
   /// Fetch passes for a specific event
   static Future<List<TicketType>> fetchEventPasses(String eventId) async {
     try {
@@ -147,6 +197,107 @@ class TicketService {
       }
     } catch (e) {
       print('Error creating order: $e');
+      rethrow;
+    }
+  }
+
+  /// Download ticket PDF for a specific booking
+  static Future<List<int>> downloadTicket(String bookingId) async {
+    try {
+      final endpoint = ApiConfig.downloadTicket(bookingId);
+      print('Downloading ticket from: $endpoint');
+      
+      // Get auth token
+      final token = await UserStorage.getToken();
+      final isLoggedIn = await UserStorage.getLoginStatus();
+      
+      if (token == null || !isLoggedIn) {
+        throw Exception('AUTHENTICATION_REQUIRED');
+      }
+
+      final response = await http.get(
+        Uri.parse(endpoint),
+        headers: ApiConfig.getAuthHeaders(token),
+      ).timeout(const Duration(seconds: 30)); // Longer timeout for file download
+
+      print('Download Ticket API Response Status: ${response.statusCode}');
+      print('Download Ticket API Response Headers: ${response.headers}');
+      
+      if (response.statusCode == 200) {
+        print('Successfully downloaded ticket, size: ${response.bodyBytes.length} bytes');
+        return response.bodyBytes;
+      } else if (response.statusCode == 401) {
+        await UserStorage.clearAll();
+        throw Exception('AUTHENTICATION_REQUIRED');
+      } else {
+        try {
+          final errorData = json.decode(response.body);
+          throw Exception(errorData['message'] ?? 'Failed to download ticket: HTTP ${response.statusCode}');
+        } catch (e) {
+          throw Exception('Failed to download ticket: HTTP ${response.statusCode}');
+        }
+      }
+    } catch (e) {
+      print('Error downloading ticket: $e');
+      rethrow;
+    }
+  }
+
+  /// Get QR code data for a specific pass (from verify payment API)
+  static Future<Map<String, dynamic>> getPassQRCode({
+    required String passId,
+    required String eventId,
+  }) async {
+    try {
+      final endpoint = ApiConfig.verifyPayment;
+      print('Getting QR code data from: $endpoint');
+      
+      // Get auth token
+      final token = await UserStorage.getToken();
+      final isLoggedIn = await UserStorage.getLoginStatus();
+      
+      if (token == null || !isLoggedIn) {
+        throw Exception('AUTHENTICATION_REQUIRED');
+      }
+      
+      final requestBody = {
+        'passId': passId,
+        'eventId': eventId,
+        'action': 'getQRCode', // Custom action to get QR code
+      };
+      
+      print('Get QR Code Request Body: ${json.encode(requestBody)}');
+      
+      final response = await http.post(
+        Uri.parse(endpoint),
+        headers: ApiConfig.getAuthHeaders(token),
+        body: json.encode(requestBody),
+      ).timeout(const Duration(seconds: 15));
+
+      print('Get QR Code API Response Status: ${response.statusCode}');
+      print('Get QR Code API Response Body: ${response.body}');
+      
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> data = json.decode(response.body);
+        
+        if (data['success'] == true) {
+          return data;
+        } else {
+          throw Exception(data['message'] ?? 'Failed to get QR code');
+        }
+      } else if (response.statusCode == 401) {
+        await UserStorage.clearAll();
+        throw Exception('AUTHENTICATION_REQUIRED');
+      } else {
+        try {
+          final errorData = json.decode(response.body);
+          throw Exception(errorData['message'] ?? 'Failed to get QR code: HTTP ${response.statusCode}');
+        } catch (e) {
+          throw Exception('Failed to get QR code: HTTP ${response.statusCode}');
+        }
+      }
+    } catch (e) {
+      print('Error getting QR code: $e');
       rethrow;
     }
   }

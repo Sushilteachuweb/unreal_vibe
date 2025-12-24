@@ -30,6 +30,12 @@ class TicketConfirmationScreen extends StatefulWidget {
 class _TicketConfirmationScreenState extends State<TicketConfirmationScreen> {
   final DummyRazorpayService _razorpayService = DummyRazorpayService();
   bool _isProcessingPayment = false;
+  
+  // Promo code related variables
+  final TextEditingController _promoCodeController = TextEditingController();
+  String? _appliedPromoCode;
+  double _discountPercentage = 0.0;
+  bool _isApplyingPromo = false;
 
   @override
   void initState() {
@@ -51,9 +57,72 @@ class _TicketConfirmationScreenState extends State<TicketConfirmationScreen> {
     );
   }
 
-  double get _taxAmount => _subtotal * 0.10; // 10% tax
-  double get _total => _subtotal + _taxAmount;
+  double get _discountAmount => _subtotal * (_discountPercentage / 100);
+  double get _subtotalAfterDiscount => _subtotal - _discountAmount;
+  double get _taxAmount => _subtotalAfterDiscount * 0.10; // 10% tax on discounted amount
+  double get _total => _subtotalAfterDiscount + _taxAmount;
 
+  void _applyPromoCode() async {
+    final promoCode = _promoCodeController.text.trim().toUpperCase();
+    
+    if (promoCode.isEmpty) {
+      _showErrorMessage('Please enter a promo code');
+      return;
+    }
+    
+    setState(() {
+      _isApplyingPromo = true;
+    });
+    
+    // Simulate API call delay
+    await Future.delayed(const Duration(milliseconds: 800));
+    
+    // For now, hardcode some promo codes for UI demonstration
+    double discount = 0.0;
+    bool isValid = false;
+    
+    switch (promoCode) {
+      case 'UNREAL20':
+        discount = 20.0;
+        isValid = true;
+        break;
+      case 'SAVE10':
+        discount = 10.0;
+        isValid = true;
+        break;
+      case 'WELCOME15':
+        discount = 15.0;
+        isValid = true;
+        break;
+      case 'FIRST25':
+        discount = 25.0;
+        isValid = true;
+        break;
+      default:
+        isValid = false;
+    }
+    
+    setState(() {
+      _isApplyingPromo = false;
+      if (isValid) {
+        _appliedPromoCode = promoCode;
+        _discountPercentage = discount;
+        _showSuccessMessage('Promo code "$promoCode" applied! ${discount.toInt()}% discount');
+      } else {
+        _showErrorMessage('Invalid promo code. Please try again.');
+      }
+    });
+  }
+  
+  void _removePromoCode() {
+    setState(() {
+      _appliedPromoCode = null;
+      _discountPercentage = 0.0;
+      _promoCodeController.clear();
+    });
+    _showSuccessMessage('Promo code removed');
+  }
+  
   void _proceedToPayment() {
     // Get first attendee details for payment
     final firstAttendee = widget.attendees.first;
@@ -67,6 +136,17 @@ class _TicketConfirmationScreenState extends State<TicketConfirmationScreen> {
       contact: firstAttendee.phone,
       description: 'Ticket booking for ${widget.event.title}',
     );
+  }
+  
+  void _showSuccessMessage(String message) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: const Color(0xFF10B981),
+        ),
+      );
+    }
   }
 
   void _handlePaymentSuccess(DummyPaymentSuccessResponse response) async {
@@ -234,6 +314,12 @@ class _TicketConfirmationScreenState extends State<TicketConfirmationScreen> {
   }
 
   @override
+  void dispose() {
+    _promoCodeController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF0A0A0A),
@@ -263,6 +349,8 @@ class _TicketConfirmationScreenState extends State<TicketConfirmationScreen> {
                   _buildEventCard(),
                   const SizedBox(height: 24),
                   _buildTicketSummary(),
+                  const SizedBox(height: 24),
+                  _buildPromoCodeSection(),
                   const SizedBox(height: 24),
                   _buildAttendeesList(),
                   const SizedBox(height: 24),
@@ -419,6 +507,157 @@ class _TicketConfirmationScreenState extends State<TicketConfirmationScreen> {
     );
   }
 
+  Widget _buildPromoCodeSection() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1A1A1A),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFF2A2A2A)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Promo Code',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 16),
+          
+          if (_appliedPromoCode != null) ...[
+            // Applied promo code display
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: const Color(0xFF10B981).withOpacity(0.15),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFF10B981).withOpacity(0.3)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.check_circle, color: Color(0xFF10B981), size: 20),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _appliedPromoCode!,
+                          style: const TextStyle(
+                            color: Color(0xFF10B981),
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        Text(
+                          '${_discountPercentage.toInt()}% discount applied',
+                          style: const TextStyle(
+                            color: Color(0xFF10B981),
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: _removePromoCode,
+                    child: const Text(
+                      'Remove',
+                      style: TextStyle(
+                        color: Color(0xFF10B981),
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ] else ...[
+            // Promo code input
+            Row(
+              children: [
+                Expanded(
+                  child: TextFormField(
+                    controller: _promoCodeController,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: InputDecoration(
+                      hintText: 'Enter promo code',
+                      hintStyle: const TextStyle(color: Color(0xFF6B7280)),
+                      filled: true,
+                      fillColor: const Color(0xFF0A0A0A),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: Color(0xFF2A2A2A)),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: Color(0xFF2A2A2A)),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: Color(0xFF8B5CF6)),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 16,
+                      ),
+                    ),
+                    textCapitalization: TextCapitalization.characters,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                ElevatedButton(
+                  onPressed: _isApplyingPromo ? null : _applyPromoCode,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF8B5CF6),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 16,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: _isApplyingPromo
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                          ),
+                        )
+                      : const Text(
+                          'Apply',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Try: UNREAL20, SAVE10, WELCOME15, FIRST25',
+              style: TextStyle(
+                color: Colors.grey[500],
+                fontSize: 12,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
   Widget _buildAttendeesList() {
     return Container(
       padding: const EdgeInsets.all(20),
@@ -550,6 +789,42 @@ class _TicketConfirmationScreenState extends State<TicketConfirmationScreen> {
       child: Column(
         children: [
           _buildPriceRow('Subtotal', _subtotal),
+          if (_appliedPromoCode != null) ...[
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      'Discount ($_appliedPromoCode)',
+                      style: const TextStyle(
+                        color: Color(0xFF10B981),
+                        fontSize: 15,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      '${_discountPercentage.toInt()}%',
+                      style: const TextStyle(
+                        color: Color(0xFF10B981),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+                Text(
+                  '-₹${_discountAmount.toInt()}',
+                  style: const TextStyle(
+                    color: Color(0xFF10B981),
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ],
           const SizedBox(height: 12),
           _buildPriceRow('Tax (10%)', _taxAmount),
           const SizedBox(height: 12),
@@ -566,13 +841,29 @@ class _TicketConfirmationScreenState extends State<TicketConfirmationScreen> {
                   fontWeight: FontWeight.w700,
                 ),
               ),
-              Text(
-                '₹${_total.toInt()}',
-                style: const TextStyle(
-                  color: Color(0xFF8B5CF6),
-                  fontSize: 24,
-                  fontWeight: FontWeight.w700,
-                ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  if (_appliedPromoCode != null && _discountAmount > 0) ...[
+                    Text(
+                      '₹${(_subtotal + (_subtotal * 0.10)).toInt()}',
+                      style: const TextStyle(
+                        color: Color(0xFF6B7280),
+                        fontSize: 16,
+                        decoration: TextDecoration.lineThrough,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                  ],
+                  Text(
+                    '₹${_total.toInt()}',
+                    style: const TextStyle(
+                      color: Color(0xFF8B5CF6),
+                      fontSize: 24,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),

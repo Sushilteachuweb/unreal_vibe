@@ -28,6 +28,14 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        
+        // Video codec support for better APK compatibility
+        ndk {
+            abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64")
+        }
+        
+        // Enable hardware acceleration for video playback
+        manifestPlaceholders["hardwareAccelerated"] = "true"
     }
 
     buildTypes {
@@ -35,7 +43,33 @@ android {
             // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig = signingConfigs.getByName("debug")
+            
+            // Optimize for video playback in release builds
+            isMinifyEnabled = true
+            isShrinkResources = true
+            
+            // Use ProGuard rules for video player compatibility
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
         }
+        
+        debug {
+            // Debug build optimizations for video
+            isDebuggable = true
+        }
+    }
+    
+    // Packaging options for video player compatibility
+    packagingOptions {
+        pickFirst("**/libc++_shared.so")
+        pickFirst("**/libjsc.so")
+        exclude("META-INF/DEPENDENCIES")
+        exclude("META-INF/LICENSE")
+        exclude("META-INF/LICENSE.txt")
+        exclude("META-INF/NOTICE")
+        exclude("META-INF/NOTICE.txt")
     }
 }
 

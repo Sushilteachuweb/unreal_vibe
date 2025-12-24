@@ -1,13 +1,13 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../models/event_model.dart';
 import '../home/event_card.dart';
 import '../home/event_details_screen.dart';
+import '../home/search_bar.dart';
 import '../../providers/user_provider.dart';
 import '../../providers/event_provider.dart';
-import '../../services/event_service.dart';
 import '../../services/search_service.dart';
+import '../../utils/error_handler.dart';
 import '../../widgets/skeleton_loading.dart';
 
 class ExploreScreen extends StatefulWidget {
@@ -31,7 +31,6 @@ class _ExploreScreenState extends State<ExploreScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final eventProvider = context.read<EventProvider>();
       eventProvider.fetchEventsIfNeeded();
-      eventProvider.fetchTrendingEventsIfNeeded();
     });
   }
 
@@ -96,10 +95,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
 
   Future<void> _onRefresh() async {
     final eventProvider = context.read<EventProvider>();
-    await Future.wait([
-      eventProvider.fetchEvents(forceRefresh: true),
-      eventProvider.fetchTrendingEvents(forceRefresh: true),
-    ]);
+    await eventProvider.fetchEvents(forceRefresh: true);
   }
 
   Widget _buildSkeletonLoading() {
@@ -134,41 +130,6 @@ class _ExploreScreenState extends State<ExploreScreen> {
             ),
           ),
           const SizedBox(height: 20),
-          // Trending section skeleton
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    SkeletonLoading(width: 150, height: 18),
-                    SkeletonLoading(width: 60, height: 14),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 12),
-              SizedBox(
-                height: 280,
-                child: ListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.only(left: 16, right: 4),
-                  itemCount: 3,
-                  itemBuilder: (context, index) {
-                    final screenWidth = MediaQuery.of(context).size.width;
-                    final cardWidth = screenWidth - 32 - 40;
-                    return Container(
-                      width: cardWidth,
-                      margin: const EdgeInsets.only(right: 12),
-                      child: const EventCardSkeleton(isHorizontal: true),
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),
           // Upcoming events skeleton
           const Padding(
             padding: EdgeInsets.symmetric(horizontal: 16),
@@ -204,15 +165,14 @@ class _ExploreScreenState extends State<ExploreScreen> {
   Widget build(BuildContext context) {
     return Consumer<EventProvider>(
       builder: (context, eventProvider, child) {
-        final trendingEvents = eventProvider.trendingEvents;
         final filteredEvents = eventProvider.getFilteredEvents(selectedCategory);
 
-        return _buildExploreContent(context, eventProvider, trendingEvents, filteredEvents);
+        return _buildExploreContent(context, eventProvider, filteredEvents);
       },
     );
   }
 
-  Widget _buildExploreContent(BuildContext context, EventProvider eventProvider, List<Event> trendingEvents, List<Event> filteredEvents) {
+  Widget _buildExploreContent(BuildContext context, EventProvider eventProvider, List<Event> filteredEvents) {
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -220,39 +180,9 @@ class _ExploreScreenState extends State<ExploreScreen> {
       body: eventProvider.isLoading && !eventProvider.hasData
           ? _buildSkeletonLoading()
           : eventProvider.error != null && !eventProvider.hasData
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(
-                          Icons.error_outline,
-                          color: Colors.red,
-                          size: 48,
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'Failed to load events',
-                          style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          eventProvider.error ?? 'Unknown error',
-                          style: TextStyle(color: Colors.grey[400], fontSize: 14),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 24),
-                        ElevatedButton(
-                          onPressed: () => eventProvider.fetchEvents(),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF6958CA),
-                          ),
-                          child: const Text('Retry'),
-                        ),
-                      ],
-                    ),
-                  ),
+              ? ErrorHandler.buildEmptyState(
+                  context: 'events',
+                  onRetry: () => eventProvider.fetchEvents(),
                 )
               : RefreshLoadingIndicator(
                   isLoading: eventProvider.isLoading && eventProvider.hasData,
@@ -281,11 +211,6 @@ class _ExploreScreenState extends State<ExploreScreen> {
                             _buildCategoryChips(),
                             
                             const SizedBox(height: 20),
-                            
-                            // Trending Near You
-                            _buildTrendingSection(trendingEvents),
-                            
-                            const SizedBox(height: 24),
                             
                             // Upcoming Events
                             _buildUpcomingEventsSection(filteredEvents),
@@ -343,61 +268,21 @@ class _ExploreScreenState extends State<ExploreScreen> {
   Widget _buildSearchBar() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Container(
-        decoration: BoxDecoration(
-          color: const Color(0xFF1A1A1A),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: TextField(
-          controller: _searchController,
-          onChanged: (value) {
-            if (value.isEmpty) {
-              _clearSearch();
-            }
-          },
-          onSubmitted: _performSearch,
-          style: const TextStyle(color: Colors.white),
-          decoration: InputDecoration(
-            hintText: 'Search for artists, events, places...',
-            hintStyle: TextStyle(
-              color: Colors.grey[600],
-              fontSize: 14,
-            ),
-            prefixIcon: Icon(
-              Icons.search,
-              color: Colors.grey[600],
-              size: 20,
-            ),
-            suffixIcon: _searchController.text.isNotEmpty
-                ? Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        icon: Icon(
-                          Icons.send,
-                          color: Colors.grey[600],
-                          size: 20,
-                        ),
-                        onPressed: () => _performSearch(_searchController.text),
-                      ),
-                      IconButton(
-                        icon: Icon(
-                          Icons.clear,
-                          color: Colors.grey[600],
-                          size: 20,
-                        ),
-                        onPressed: _clearSearch,
-                      ),
-                    ],
-                  )
-                : null,
-            border: InputBorder.none,
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 12,
-            ),
-          ),
-        ),
+      child: Consumer<UserProvider>(
+        builder: (context, userProvider, child) {
+          final userCity = userProvider.user?.city ?? 'Delhi';
+          return CustomSearchBar(
+            controller: _searchController,
+            userCity: userCity,
+            showSuggestions: true,
+            onChanged: (value) {
+              if (value.isEmpty) {
+                _clearSearch();
+              }
+            },
+            onSearch: _performSearch,
+          );
+        },
       ),
     );
   }
@@ -451,86 +336,6 @@ class _ExploreScreenState extends State<ExploreScreen> {
           );
         },
       ),
-    );
-  }
-
-  Widget _buildTrendingSection(List<Event> trendingEvents) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Trending Near You',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              TextButton(
-                onPressed: () {},
-                style: TextButton.styleFrom(
-                  padding: EdgeInsets.zero,
-                  minimumSize: Size.zero,
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
-                child: const Text(
-                  'See all',
-                  style: TextStyle(
-                    color: Color(0xFF6958CA),
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 12),
-        SizedBox(
-          height: 280,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.only(left: 16, right: 4),
-            itemCount: trendingEvents.length,
-            itemBuilder: (context, index) {
-              final event = trendingEvents[index];
-              final screenWidth = MediaQuery.of(context).size.width;
-              // Make first card take most of the screen width with just a peek of the second card
-              final cardWidth = screenWidth - 32 - 40; // 32 for left/right padding, 40 for peek of next card
-              return Container(
-                width: cardWidth,
-                margin: EdgeInsets.only(
-                  right: index < trendingEvents.length - 1 ? 12 : 0,
-                ),
-                child: EventCard(
-                  title: event.title,
-                  subtitle: event.subtitle,
-                  date: event.date,
-                  location: event.location,
-                  coverCharge: event.coverCharge,
-                  imageUrl: event.imageUrl,
-                  tags: event.tags,
-                  isHorizontal: true,
-                  status: event.status,
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => EventDetailsScreen(event: event),
-                      ),
-                    );
-                  },
-                ),
-              );
-            },
-          ),
-        ),
-      ],
     );
   }
 
@@ -639,81 +444,9 @@ class _ExploreScreenState extends State<ExploreScreen> {
               ),
             )
           else if (_searchResults.isEmpty)
-            Center(
-              child: Padding(
-                padding: const EdgeInsets.all(32.0),
-                child: Column(
-                  children: [
-                    Icon(
-                      Icons.search_off,
-                      size: 48,
-                      color: Colors.grey[600],
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'No events found',
-                      style: TextStyle(
-                        color: Colors.grey[400],
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Try searching with different keywords',
-                      style: TextStyle(
-                        color: Colors.grey[600],
-                        fontSize: 14,
-                      ),
-                    ),
-                    // Debug info
-                    if (kDebugMode) ...[
-                      const SizedBox(height: 16),
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.red.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Column(
-                          children: [
-                            Text(
-                              'DEBUG INFO',
-                              style: TextStyle(
-                                color: Colors.red,
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Query: "$_searchQuery"',
-                              style: TextStyle(
-                                color: Colors.red,
-                                fontSize: 10,
-                              ),
-                            ),
-                            Text(
-                              'Results: ${_searchResults.length}',
-                              style: TextStyle(
-                                color: Colors.red,
-                                fontSize: 10,
-                              ),
-                            ),
-                            Text(
-                              'Searching: $_isSearching',
-                              style: TextStyle(
-                                color: Colors.red,
-                                fontSize: 10,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
+            ErrorHandler.buildEmptyState(
+              context: 'search',
+              customMessage: 'No events found matching "$_searchQuery"',
             )
           else
             ListView.builder(

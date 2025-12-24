@@ -232,12 +232,13 @@ class EventCard extends StatelessWidget {
           top: 12,
           left: 12,
           right: 12,
-          child: Row(
+          child: Wrap(
+            spacing: 8,
+            runSpacing: 6,
             children: [
-              ..._getPriorityTags().asMap().entries.map((entry) => Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: _buildTag(entry.value, entry.key),
-              )),
+              ..._getPriorityTags().asMap().entries.map((entry) => 
+                _buildTag(entry.value, entry.key),
+              ),
             ],
           ),
         ),
@@ -332,7 +333,13 @@ class EventCard extends StatelessWidget {
     const categories = [
       'MUSIC', 'FESTIVAL', 'COMEDY', 'DANCE', 'PARTY', 'CONCERT',
       'STANDUP', 'DJ', 'LIVE', 'CLUB', 'NIGHTLIFE', 'ENTERTAINMENT',
-      'CULTURAL', 'FOOD', 'DRINKS', 'SOCIAL', 'NETWORKING'
+      'CULTURAL', 'FOOD', 'DRINKS', 'SOCIAL', 'NETWORKING',
+      'TECHNO', 'ELECTRONIC', 'HOUSE', 'TRANCE', 'DUBSTEP', 'EDM',
+      'ROCK', 'POP', 'JAZZ', 'CLASSICAL', 'INDIE', 'FOLK', 'RAP',
+      'HIP-HOP', 'REGGAE', 'BLUES', 'COUNTRY', 'METAL', 'PUNK',
+      'BOLLYWOOD', 'PUNJABI', 'SUFI', 'GHAZAL', 'QAWWALI',
+      'WORKSHOP', 'SEMINAR', 'CONFERENCE', 'MEETUP', 'EXHIBITION',
+      'THEATER', 'DRAMA', 'MUSICAL', 'OPERA', 'BALLET'
     ];
     
     return categories.any((category) => tag.toUpperCase().contains(category));
@@ -341,30 +348,32 @@ class EventCard extends StatelessWidget {
   List<String> _getPriorityTags() {
     List<String> priorityTags = [];
     
-    // First priority: Categories (purple)
+    // First priority: All Categories (purple) - show up to 2 categories
     final categoryTags = tags.where((tag) => _isCategoryTag(tag) && !tag.startsWith('AGE:')).toList();
     if (categoryTags.isNotEmpty) {
-      priorityTags.add(categoryTags.first);
+      // Add up to 2 categories to show multiple genres like "Techno, Electronic"
+      priorityTags.addAll(categoryTags.take(2));
     }
     
-    // Second priority: Age restriction (yellow)
+    // Second priority: Age restriction (yellow) - always show if present
     final ageTags = tags.where((tag) => tag.startsWith('AGE:')).toList();
     if (ageTags.isNotEmpty) {
       priorityTags.add(ageTags.first);
     }
     
-    // If we don't have enough priority tags, fill with other tags
-    if (priorityTags.length < 2) {
+    // If we still have space and no categories, show other important tags
+    if (priorityTags.length < 3 && categoryTags.isEmpty) {
       final otherTags = tags.where((tag) => 
         !tag.startsWith('AGE:') && 
         !_isCategoryTag(tag)
       ).toList();
       
-      final needed = 2 - priorityTags.length;
+      final needed = 3 - priorityTags.length;
       priorityTags.addAll(otherTags.take(needed));
     }
     
-    return priorityTags.take(2).toList();
+    // Return up to 3 tags (2 categories + 1 age restriction, or 3 other tags)
+    return priorityTags.take(3).toList();
   }
 
   Widget _buildEventDetails() {

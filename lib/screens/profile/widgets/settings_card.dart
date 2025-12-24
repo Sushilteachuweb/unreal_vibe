@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../providers/user_provider.dart';
 import '../edit_profile_screen.dart';
+import '../notifications_screen.dart';
 
 class SettingsCard extends StatelessWidget {
   const SettingsCard({Key? key}) : super(key: key);
@@ -27,9 +28,15 @@ class SettingsCard extends StatelessWidget {
             ),
           ),
           _buildDivider(),
-          _buildSettingsItem(context, Icons.lock, 'Privacy', () {}),
-          _buildDivider(),
-          _buildSettingsItem(context, Icons.notifications, 'Notifications', () {}),
+          _buildSettingsItem(
+            context, 
+            Icons.notifications, 
+            'Notifications', 
+            () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const NotificationsScreen()),
+            ),
+          ),
           _buildDivider(),
           _buildSettingsItem(
             context,

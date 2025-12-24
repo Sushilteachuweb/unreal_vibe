@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../utils/responsive_helper.dart';
 import '../screens/home/home_screen.dart';
 import '../screens/explore/explore_screen.dart';
@@ -9,7 +10,7 @@ import '../screens/home/bottom_navigation.dart';
 
 class MainNavigation extends StatefulWidget {
   final int initialIndex;
-  const MainNavigation({Key? key, this.initialIndex = 0}) : super(key: key);
+  const MainNavigation({super.key, this.initialIndex = 0});
 
   @override
   State<MainNavigation> createState() => _MainNavigationState();
@@ -17,6 +18,7 @@ class MainNavigation extends StatefulWidget {
 
 class _MainNavigationState extends State<MainNavigation> {
   late int _currentIndex;
+  DateTime? _lastBackPressed;
 
   final List<Widget> _screens = [
     const HomeScreen(),
@@ -36,6 +38,36 @@ class _MainNavigationState extends State<MainNavigation> {
     setState(() {
       _currentIndex = index;
     });
+  }
+
+  Future<bool> _onWillPop() async {
+    // If not on home screen (index 0), navigate to home first
+    if (_currentIndex != 0) {
+      setState(() {
+        _currentIndex = 0;
+      });
+      return false; // Don't exit app
+    }
+
+    // If on home screen, check for double back press
+    final now = DateTime.now();
+    if (_lastBackPressed == null || 
+        now.difference(_lastBackPressed!) > const Duration(seconds: 2)) {
+      _lastBackPressed = now;
+      
+      // Show snackbar to inform user
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Press back again to exit'),
+          duration: Duration(seconds: 2),
+          backgroundColor: Color(0xFF6958CA),
+        ),
+      );
+      return false; // Don't exit app
+    }
+
+    // Second back press within 2 seconds - exit app
+    return true;
   }
 
   @override
@@ -97,15 +129,26 @@ class _MainNavigationState extends State<MainNavigation> {
       );
     }
 
-    return Scaffold(
-      body: SafeArea(
-        top: true,
-        bottom: true,
-        child: _screens[_currentIndex],
-      ),
-      bottomNavigationBar: CustomBottomNavigation(
-        currentIndex: _currentIndex,
-        onTap: _onTabTapped,
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (!didPop) {
+          final shouldPop = await _onWillPop();
+          if (shouldPop && context.mounted) {
+            SystemNavigator.pop();
+          }
+        }
+      },
+      child: Scaffold(
+        body: SafeArea(
+          top: true,
+          bottom: true,
+          child: _screens[_currentIndex],
+        ),
+        bottomNavigationBar: CustomBottomNavigation(
+          currentIndex: _currentIndex,
+          onTap: _onTabTapped,
+        ),
       ),
     );
   }

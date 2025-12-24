@@ -323,9 +323,6 @@ class TicketsScreen extends StatelessWidget {
                                 errorCorrectionLevel: QrErrorCorrectLevel.H, // Higher error correction
                               );
                             } catch (e) {
-                              print('❌ QR Code Generation Error: $e');
-                              print('❌ QR Data that failed: $qrData');
-                              
                               // Fallback: try with just the ticket number
                               try {
                                 return QrImageView(
@@ -337,19 +334,32 @@ class TicketsScreen extends StatelessWidget {
                                   errorCorrectionLevel: QrErrorCorrectLevel.H,
                                 );
                               } catch (e2) {
-                                print('❌ Fallback QR Code also failed: $e2');
                                 return Container(
                                   width: 160,
                                   height: 160,
                                   decoration: BoxDecoration(
-                                    color: Colors.red[100],
+                                    color: const Color(0xFF6958CA).withOpacity(0.1),
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                   child: const Center(
-                                    child: Text(
-                                      'QR Generation\nFailed',
-                                      style: TextStyle(color: Colors.red, fontSize: 12),
-                                      textAlign: TextAlign.center,
+                                    child: Column(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Icon(
+                                          Icons.qr_code,
+                                          color: Color(0xFF6958CA),
+                                          size: 40,
+                                        ),
+                                        SizedBox(height: 8),
+                                        Text(
+                                          'QR code\nunavailable',
+                                          style: TextStyle(
+                                            color: Color(0xFF6958CA),
+                                            fontSize: 12,
+                                          ),
+                                          textAlign: TextAlign.center,
+                                        ),
+                                      ],
                                     ),
                                   ),
                                 );

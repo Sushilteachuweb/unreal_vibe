@@ -325,56 +325,128 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
           ),
         ),
         const SizedBox(height: 8),
-        Container(
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.15),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: Colors.white.withOpacity(0.2),
-              width: 1,
-            ),
-          ),
-          child: DropdownButtonFormField<String>(
-            value: _selectedGender,
-            dropdownColor: const Color(0xFF2F1518),
-            decoration: InputDecoration(
-              hintText: 'Select your gender',
-              hintStyle: TextStyle(
-                color: Colors.white.withOpacity(0.5),
-                fontSize: 14,
-              ),
-              prefixIcon: Icon(
-                Icons.person_outline,
-                color: Colors.white.withOpacity(0.7),
-              ),
-              border: InputBorder.none,
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 15,
-                vertical: 16,
+        GestureDetector(
+          onTap: () => _showGenderBottomSheet(),
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: Colors.white.withOpacity(0.2),
+                width: 1,
               ),
             ),
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: isTablet ? 18 : 16,
+            padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 16),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.person_outline,
+                  color: Colors.white.withOpacity(0.7),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    _selectedGender ?? 'Select your gender',
+                    style: TextStyle(
+                      color: _selectedGender != null 
+                          ? Colors.white 
+                          : Colors.white.withOpacity(0.5),
+                      fontSize: isTablet ? 18 : 16,
+                    ),
+                  ),
+                ),
+                Icon(
+                  Icons.arrow_drop_down,
+                  color: Colors.white.withOpacity(0.7),
+                ),
+              ],
             ),
-            icon: Icon(
-              Icons.arrow_drop_down,
-              color: Colors.white.withOpacity(0.7),
-            ),
-            items: ['Male', 'Female', 'Other'].map((String gender) {
-              return DropdownMenuItem<String>(
-                value: gender,
-                child: Text(gender),
-              );
-            }).toList(),
-            onChanged: (String? newValue) {
-              setState(() {
-                _selectedGender = newValue;
-              });
-            },
           ),
         ),
       ],
+    );
+  }
+
+  void _showGenderBottomSheet() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (BuildContext context) {
+        return Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                const Color(0xFFAB3965).withOpacity(0.95),
+                const Color(0xFF2F1518).withOpacity(0.98),
+              ],
+            ),
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(20),
+              topRight: Radius.circular(20),
+            ),
+          ),
+          child: SafeArea(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(height: 12),
+                Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.3),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Text(
+                    'Select Gender',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                ...['Male', 'Female', 'Other'].map((gender) {
+                  return ListTile(
+                    leading: Icon(
+                      Icons.person,
+                      color: Colors.white.withOpacity(0.7),
+                    ),
+                    title: Text(
+                      gender,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                      ),
+                    ),
+                    trailing: _selectedGender == gender
+                        ? const Icon(
+                            Icons.check,
+                            color: Color(0xFFE91E63),
+                          )
+                        : null,
+                    onTap: () {
+                      setState(() {
+                        _selectedGender = gender;
+                      });
+                      Navigator.pop(context);
+                    },
+                  );
+                }).toList(),
+                const SizedBox(height: 20),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 

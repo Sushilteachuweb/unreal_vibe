@@ -5,6 +5,7 @@ import 'create_account_screen.dart';
 import '../../utils/responsive_helper.dart';
 import '../../providers/user_provider.dart';
 import '../../navigation/main_navigation.dart';
+import '../../services/app_initialization_service.dart';
 
 class OtpScreen extends StatefulWidget {
   final String phoneNumber;
@@ -383,6 +384,9 @@ class _OtpScreenState extends State<OtpScreen> {
       if (result['success']) {
         final isProfileComplete = result['isProfileComplete'] ?? false;
 
+        // Initialize notification services after successful login
+        await AppInitializationService.reinitializeAfterLogin();
+
         // Show success message
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -392,9 +396,20 @@ class _OtpScreenState extends State<OtpScreen> {
           ),
         );
 
-        // Navigate based on profile completion
-        if (isProfileComplete) {
-          // Profile is complete, go to home
+        // Always fetch profile to verify actual user data
+        await userProvider.fetchProfile();
+        final user = userProvider.user;
+
+        // Check if user has required fields for basic profile
+        final hasRequiredFields = user != null && 
+          user.name != null && user.name!.isNotEmpty &&
+          user.email != null && user.email!.isNotEmpty &&
+          user.city != null && user.city!.isNotEmpty &&
+          user.gender != null && user.gender!.isNotEmpty;
+
+        // Navigate based on actual user data, not just backend flag
+        if (isProfileComplete || hasRequiredFields) {
+          // Profile exists and has required fields, go to main app
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(
@@ -402,7 +417,7 @@ class _OtpScreenState extends State<OtpScreen> {
             ),
           );
         } else {
-          // Profile incomplete, go to complete profile
+          // Profile incomplete or missing required fields, go to create account
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(

@@ -7,6 +7,7 @@ import '../../models/event_model.dart';
 import '../../models/filter_model.dart';
 import 'event_details_screen.dart';
 import '../../utils/responsive_helper.dart';
+import '../../utils/error_handler.dart';
 import '../../providers/user_provider.dart';
 import '../../providers/event_provider.dart';
 import '../../utils/api_debug.dart';
@@ -256,54 +257,9 @@ class _HomeScreenState extends State<HomeScreen> {
       body: eventProvider.isLoading && !eventProvider.hasData
           ? _buildSkeletonLoading(context, padding)
           : eventProvider.error != null && !eventProvider.hasData
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(
-                          Icons.error_outline,
-                          color: Colors.red,
-                          size: 48,
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'Failed to load events',
-                          style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          eventProvider.error ?? 'Unknown error',
-                          style: TextStyle(color: Colors.grey[400], fontSize: 14),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 24),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            ElevatedButton(
-                              onPressed: () => eventProvider.fetchEvents(),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF6958CA),
-                              ),
-                              child: const Text('Retry'),
-                            ),
-                            const SizedBox(width: 16),
-                            ElevatedButton(
-                              onPressed: () async {
-                                await ApiDebug.testApiEndpoints();
-                              },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.orange,
-                              ),
-                              child: const Text('Debug API'),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
+              ? ErrorHandler.buildEmptyState(
+                  context: 'events',
+                  onRetry: () => eventProvider.fetchEvents(),
                 )
               : RefreshLoadingIndicator(
                   isLoading: eventProvider.isLoading && eventProvider.hasData,
@@ -688,13 +644,57 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
         const SizedBox(height: 12),
-        SizedBox(
-          height: cardHeight,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            padding: EdgeInsets.only(left: padding, right: 4),
-            itemCount: events.length,
-            itemBuilder: (context, index) {
+        events.isEmpty
+            ? Container(
+                height: cardHeight,
+                padding: EdgeInsets.symmetric(horizontal: padding),
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Container(
+                        width: 80,
+                        height: 80,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF6958CA).withOpacity(0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.event_busy,
+                          color: Color(0xFF6958CA),
+                          size: 40,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'No trending events near your location',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        'Try exploring different areas or check back later',
+                        style: TextStyle(
+                          color: Color(0xFF9CA3AF),
+                          fontSize: 14,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            : SizedBox(
+                height: cardHeight,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  padding: EdgeInsets.only(left: padding, right: 4),
+                  itemCount: events.length,
+                  itemBuilder: (context, index) {
               final event = events[index];
               return Container(
                 width: cardWidth,

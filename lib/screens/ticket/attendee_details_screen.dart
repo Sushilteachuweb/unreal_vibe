@@ -9,6 +9,7 @@ import '../../services/user_storage.dart';
 import '../../services/auth_service.dart';
 import '../../services/test_auth_helper.dart';
 import '../../models/purchased_ticket_model.dart';
+import '../../utils/error_handler.dart';
 import 'ticket_confirmation_screen.dart';
 import 'payment_success_screen.dart';
 
@@ -195,11 +196,7 @@ class _AttendeeDetailsScreenState extends State<AttendeeDetailsScreen> {
     for (int i = 0; i < _attendees.length; i++) {
       final attendee = _attendees[i];
       
-      print('🔍 Validating Attendee ${i + 1}:');
-      print('  - Name: "${attendee.fullName}"');
-      print('  - Email: "${attendee.email}"');
-      print('  - Phone: "${attendee.phone}"');
-      print('  - Gender: "${attendee.gender}"');
+      // Validating attendee ${i + 1}
       
       List<String> fieldErrors = [];
       
@@ -222,7 +219,7 @@ class _AttendeeDetailsScreenState extends State<AttendeeDetailsScreen> {
         print('    - Missing: Phone');
       } else if (attendee.phone.length != 10) {
         fieldErrors.add('Phone (must be 10 digits)');
-        print('    - Invalid: Phone length (${attendee.phone.length})');
+
       } else if (!RegExp(r'^[0-9]{10}$').hasMatch(attendee.phone)) {
         fieldErrors.add('Phone (invalid format)');
         print('    - Invalid: Phone format');
@@ -230,9 +227,9 @@ class _AttendeeDetailsScreenState extends State<AttendeeDetailsScreen> {
       
       if (fieldErrors.isNotEmpty) {
         validationErrors.add('Attendee ${i + 1}: ${fieldErrors.join(', ')}');
-        print('  ❌ Data validation failed for Attendee ${i + 1}');
+        // Validation failed for attendee ${i + 1}
       } else {
-        print('  ✅ Data validation passed for Attendee ${i + 1}');
+        // Validation passed for attendee ${i + 1}
       }
     }
 
@@ -249,7 +246,7 @@ class _AttendeeDetailsScreenState extends State<AttendeeDetailsScreen> {
       return;
     }
     
-    print('✅ All ${_attendees.length} attendees validated successfully!');
+    // All attendees validated successfully
 
     setState(() {
       _isCreatingOrder = true;
@@ -280,12 +277,7 @@ class _AttendeeDetailsScreenState extends State<AttendeeDetailsScreen> {
       final totalTicketQuantity = selectedTickets.fold<int>(0, (sum, ticket) => sum + (ticket['quantity'] as int));
       final totalAttendeesCount = attendeesData.length;
 
-      // Debug logging
-      print('🎫 Selected Tickets: $selectedTickets');
-      print('👥 Attendees Data: $attendeesData');
-      print('📊 Total Ticket Quantity: $totalTicketQuantity');
-      print('📊 Expected Attendee Count: $expectedAttendeeCount');
-      print('📊 Actual Attendees Count: $totalAttendeesCount');
+      // Validation logging for debugging
       
       // Debug individual ticket selections
       for (int i = 0; i < widget.ticketSelections.length; i++) {
@@ -295,10 +287,7 @@ class _AttendeeDetailsScreenState extends State<AttendeeDetailsScreen> {
       }
       
       // Debug individual attendees
-      for (int i = 0; i < _attendees.length; i++) {
-        final attendee = _attendees[i];
-        print('👤 Attendee $i: ${attendee.fullName} (${attendee.passType} - ${attendee.gender})');
-      }
+      // Attendee data prepared for order creation
 
       // Validate attendee count matches expected count
       if (totalAttendeesCount != expectedAttendeeCount) {
@@ -310,7 +299,7 @@ class _AttendeeDetailsScreenState extends State<AttendeeDetailsScreen> {
       for (final attendee in attendeesData) {
         final attendeePassType = attendee['passType'] as String;
         if (!selectedTicketTypes.contains(attendeePassType)) {
-          print('❌ Attendee pass type "$attendeePassType" not found in selected tickets: $selectedTicketTypes');
+
           throw Exception('Attendee pass type "$attendeePassType" does not match any selected ticket type');
         }
       }
@@ -332,7 +321,7 @@ class _AttendeeDetailsScreenState extends State<AttendeeDetailsScreen> {
         final expectedAttendeeCount = isCouple ? ticketQuantity * 2 : ticketQuantity;
         
         if (attendeeCount != expectedAttendeeCount) {
-          print('❌ Pass type "$ticketType": Expected $expectedAttendeeCount attendees, got $attendeeCount');
+
           throw Exception('Pass type "$ticketType": Expected $expectedAttendeeCount attendees, but got $attendeeCount');
         }
       }
@@ -363,7 +352,7 @@ class _AttendeeDetailsScreenState extends State<AttendeeDetailsScreen> {
           _isCreatingOrder = false;
         });
         
-        String errorMessage = 'Failed to create order: $e';
+        String errorMessage;
         
         // Handle authentication errors
         if (e.toString().contains('AUTHENTICATION_REQUIRED')) {
@@ -379,21 +368,15 @@ class _AttendeeDetailsScreenState extends State<AttendeeDetailsScreen> {
           return;
         }
         
-        // Handle specific API errors
+        // Handle specific booking errors
         if (e.toString().contains('pass not available')) {
           errorMessage = 'Selected tickets are no longer available. Please try different tickets.';
-        } else if (e.toString().contains('Attendees count mismatch')) {
+        } else if (e.toString().contains('Attendees count mismatch') || 
+                   e.toString().contains('Attendee count') && e.toString().contains('does not match')) {
           errorMessage = 'There is a mismatch between the number of tickets and attendees. Please go back and check your selection.';
-        } else if (e.toString().contains('Attendee count') && e.toString().contains('does not match')) {
-          errorMessage = 'The number of attendee details does not match the number of tickets selected. Please check and try again.';
-        } else if (e.toString().contains('Order creation failed: HTTP 400')) {
-          // Extract the actual error message from API
-          final match = RegExp(r'Order creation failed: HTTP 400').firstMatch(e.toString());
-          if (match != null) {
-            errorMessage = 'Booking failed. Please check ticket availability and try again.';
-          }
-        } else if (e.toString().contains('Insufficient permissions')) {
-          errorMessage = 'Your account does not have permission to create orders. Please try logging in again or contact support.';
+        } else {
+          // Use the error handler for all other errors
+          errorMessage = ErrorHandler.getUserFriendlyMessage(e);
         }
         
         ScaffoldMessenger.of(context).showSnackBar(
@@ -905,7 +888,10 @@ class _AttendeeDetailsScreenState extends State<AttendeeDetailsScreen> {
 
   Widget _buildGenderSelector(int index) {
     final attendee = _attendees[index];
-    final isCouple = attendee.passType.toUpperCase().contains('COUPLE');
+    final passTypeUpper = attendee.passType.toUpperCase();
+    final isCouple = passTypeUpper.contains('COUPLE');
+    final isMalePass = passTypeUpper.contains('MALE') && !passTypeUpper.contains('FEMALE');
+    final isFemalePass = passTypeUpper.contains('FEMALE');
     
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -940,8 +926,50 @@ class _AttendeeDetailsScreenState extends State<AttendeeDetailsScreen> {
               ),
             ),
           ),
+        ] else if (isMalePass) ...[
+          // For male pass, show only male option (fixed)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            decoration: BoxDecoration(
+              color: const Color(0xFF6958CA),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFF6958CA)),
+            ),
+            child: const Center(
+              child: Text(
+                'Male (Fixed for Male Pass)',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ),
+        ] else if (isFemalePass) ...[
+          // For female pass, show only female option (fixed)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            decoration: BoxDecoration(
+              color: const Color(0xFF6958CA),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFF6958CA)),
+            ),
+            child: const Center(
+              child: Text(
+                'Female (Fixed for Female Pass)',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ),
         ] else ...[
-          // For individual tickets, allow gender selection
+          // For other tickets, allow gender selection
           Row(
             children: [
               Expanded(
@@ -961,10 +989,18 @@ class _AttendeeDetailsScreenState extends State<AttendeeDetailsScreen> {
   Widget _buildGenderOption(int index, String gender) {
     final isSelected = _attendees[index].gender == gender;
     final attendee = _attendees[index];
-    final isCouple = attendee.passType.toUpperCase().contains('COUPLE');
+    final passTypeUpper = attendee.passType.toUpperCase();
+    final isCouple = passTypeUpper.contains('COUPLE');
+    final isMalePass = passTypeUpper.contains('MALE') && !passTypeUpper.contains('FEMALE');
+    final isFemalePass = passTypeUpper.contains('FEMALE');
+    
+    // Disable interaction for couple tickets or when gender doesn't match pass type
+    final isDisabled = isCouple || 
+                      (isMalePass && gender == 'Female') || 
+                      (isFemalePass && gender == 'Male');
     
     return GestureDetector(
-      onTap: isCouple ? null : () {
+      onTap: isDisabled ? null : () {
         setState(() {
           _attendees[index] = _attendees[index].copyWith(gender: gender);
         });

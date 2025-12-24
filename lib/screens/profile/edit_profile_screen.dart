@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import '../../providers/user_provider.dart';
+import '../../utils/error_handler.dart';
 
 class EditProfileScreen extends StatefulWidget {
   const EditProfileScreen({Key? key}) : super(key: key);
@@ -104,15 +105,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       }
     } catch (e) {
       if (mounted) {
-        // Log detailed error for developers
-        debugPrint('🚨 [EditProfile] Image selection error: $e');
-        
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Failed to select image. Please try again'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        ErrorHandler.showErrorSnackBar(context, e);
       }
     }
   }
@@ -221,15 +214,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       
       setState(() => _isLoading = false);
       
-      // Log detailed error for developers
-      debugPrint('🚨 [EditProfile] Profile update error: $e');
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Failed to update profile. Please try again'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      ErrorHandler.showErrorSnackBar(context, e);
     }
   }
 

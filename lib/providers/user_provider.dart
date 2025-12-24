@@ -3,6 +3,7 @@ import '../models/user_model.dart';
 import '../services/user_storage.dart';
 import '../services/auth_service.dart';
 import '../services/profile_service.dart';
+import '../services/app_initialization_service.dart';
 
 class UserProvider extends ChangeNotifier {
   User? _user;
@@ -236,6 +237,9 @@ class UserProvider extends ChangeNotifier {
   Future<void> logoutUser() async {
     try {
       await AuthService.logout();
+      
+      // Cleanup notification services
+      await AppInitializationService.cleanup();
       
       _user = null;
       _isLoggedIn = false;
