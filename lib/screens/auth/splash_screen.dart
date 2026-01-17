@@ -23,7 +23,7 @@ class _SplashScreenState extends State<SplashScreen> {
     // Wait for UserProvider to load data
     final userProvider = Provider.of<UserProvider>(context, listen: false);
     
-    // Wait a minimum of 2 seconds for splash screen
+    // Show splash for 2-3 seconds like other apps
     await Future.delayed(const Duration(seconds: 2));
 
     if (!mounted) return;

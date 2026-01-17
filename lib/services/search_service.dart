@@ -78,7 +78,7 @@ class SearchService {
       // Get authentication token
       final token = await UserStorage.getToken();
       final headers = token != null && token.isNotEmpty 
-          ? ApiConfig.getAuthHeaders(token)
+          ? await ApiConfig.getAuthHeadersWithCookies(token)
           : ApiConfig.headers;
       
       print('🔐 Using ${token != null ? "authenticated" : "non-authenticated"} headers');
@@ -299,7 +299,7 @@ class SearchService {
       // Get authentication token
       final token = await UserStorage.getToken();
       final headers = token != null && token.isNotEmpty 
-          ? ApiConfig.getAuthHeaders(token)
+          ? await ApiConfig.getAuthHeadersWithCookies(token)
           : ApiConfig.headers;
       
       print('🔐 Using ${token != null ? "authenticated" : "non-authenticated"} headers');

@@ -44,12 +44,15 @@ class MainDownloadsService {
         _showDownloadDialog(context, eventName);
       }
 
+      // Get authentication headers with cookies
+      final authHeaders = await ApiConfig.getAuthHeadersWithCookies(token);
+      
       // Download file data
       final response = await _dio.get(
         endpoint,
         options: Options(
           headers: {
-            'Authorization': 'Bearer $token',
+            ...authHeaders,
             'Accept': 'application/pdf',
           },
           responseType: ResponseType.bytes,
@@ -175,37 +178,79 @@ class MainDownloadsService {
     }
   }
 
-  /// Save file to main Downloads folder using flutter_file_dialog
+  /// Save file to main Downloads folder
   static Future<String> _saveToMainDownloads(String fileName, Uint8List fileBytes) async {
     try {
       if (Platform.isAndroid) {
-        print('📁 Saving to main Downloads folder via MediaStore...');
+        print('📁 Saving to main Downloads folder...');
         
-        // Create a temporary file first
-        final tempDir = await getTemporaryDirectory();
-        final tempFile = File('${tempDir.path}/$fileName');
-        await tempFile.writeAsBytes(fileBytes);
+        final deviceInfo = DeviceInfoPlugin();
+        final androidInfo = await deviceInfo.androidInfo;
+        final sdkInt = androidInfo.version.sdkInt;
         
-        // Use flutter_file_dialog to save to Downloads
-        final params = SaveFileDialogParams(
-          sourceFilePath: tempFile.path,
-          fileName: fileName,
-          mimeTypesFilter: ['application/pdf'],
-        );
-        
-        final filePath = await FlutterFileDialog.saveFile(params: params);
-        
-        // Clean up temp file
-        if (await tempFile.exists()) {
-          await tempFile.delete();
+        // For older Android versions (< API 29), use direct file access
+        if (sdkInt < 29) {
+          final downloadsDir = Directory('/storage/emulated/0/Download');
+          if (!await downloadsDir.exists()) {
+            await downloadsDir.create(recursive: true);
+          }
+          
+          final file = File('${downloadsDir.path}/$fileName');
+          await file.writeAsBytes(fileBytes);
+          
+          if (await file.exists() && await file.length() > 0) {
+            print('✅ File saved to public Downloads folder: ${file.path}');
+            return file.path;
+          } else {
+            throw Exception('Failed to save file');
+          }
         }
         
-        if (filePath != null) {
-          print('✅ File saved to Downloads via MediaStore');
-          return 'Downloads/$fileName';
-        } else {
-          throw Exception('Failed to save to Downloads folder');
+        // For Android 10+ (API 29+), try to access public Downloads
+        try {
+          final externalDir = await getExternalStorageDirectory();
+          if (externalDir != null) {
+            // Try to navigate to public Downloads
+            final pathParts = externalDir.path.split('/');
+            final rootPath = pathParts.sublist(0, 4).join('/');
+            final publicDownloads = Directory('$rootPath/Download');
+            
+            if (await publicDownloads.exists()) {
+              try {
+                final file = File('${publicDownloads.path}/$fileName');
+                await file.writeAsBytes(fileBytes);
+                
+                if (await file.exists() && await file.length() > 0) {
+                  print('✅ File saved to public Downloads folder');
+                  return file.path;
+                }
+              } catch (e) {
+                print('⚠️ Cannot write to public Downloads (scoped storage): $e');
+              }
+            }
+          }
+        } catch (e) {
+          print('❌ Public Downloads access failed: $e');
         }
+        
+        // Fallback: Use app external storage
+        final externalDir = await getExternalStorageDirectory();
+        if (externalDir != null) {
+          final downloadsDir = Directory('${externalDir.path}/Downloads');
+          if (!await downloadsDir.exists()) {
+            await downloadsDir.create(recursive: true);
+          }
+          
+          final file = File('${downloadsDir.path}/$fileName');
+          await file.writeAsBytes(fileBytes);
+          
+          if (await file.exists() && await file.length() > 0) {
+            print('✅ File saved to app external Downloads');
+            return file.path;
+          }
+        }
+        
+        throw Exception('Failed to save to Downloads folder');
       } else {
         // For iOS, save to app documents
         final documentsDir = await getApplicationDocumentsDirectory();

@@ -13,6 +13,7 @@ class EventProvider with ChangeNotifier {
   DateTime? _lastFetchTime;
   DateTime? _lastTrendingFetchTime;
   EventFilter _currentFilter = EventFilter.empty();
+  String? _selectedCity; // Will be initialized from user profile
   static const Duration _cacheValidDuration = Duration(minutes: 5); // Cache for 5 minutes
 
   List<Event> get events => _events;
@@ -22,6 +23,7 @@ class EventProvider with ChangeNotifier {
   String? get error => _error;
   bool get hasData => _events.isNotEmpty;
   EventFilter get currentFilter => _currentFilter;
+  String get selectedCity => _selectedCity ?? 'Noida'; // Fallback to Noida if no city set
 
   // Check if we need to fetch data (no data or cache expired)
   bool get shouldFetchData {
@@ -71,21 +73,71 @@ class EventProvider with ChangeNotifier {
   }
 
   // Force fetch trending events (for pull-to-refresh)
-  Future<void> fetchTrendingEvents({bool forceRefresh = false}) async {
-    if (!forceRefresh && !shouldFetchTrendingData) return;
+  Future<void> fetchTrendingEvents({bool forceRefresh = false, String? city}) async {
+    print('📊 [EventProvider] fetchTrendingEvents called - forceRefresh: $forceRefresh, city: $city');
+    print('📊 [EventProvider] shouldFetchTrendingData: $shouldFetchTrendingData');
+    
+    if (!forceRefresh && !shouldFetchTrendingData) {
+      print('📊 [EventProvider] Skipping fetch - using cached data');
+      return;
+    }
 
+    print('📊 [EventProvider] Starting trending events fetch');
     _isTrendingLoading = true;
     notifyListeners();
 
     try {
-      _trendingEvents = await EventService.fetchTrendingEvents();
+      print('📊 [EventProvider] Calling EventService.fetchTrendingEvents with city: ${city ?? _selectedCity}');
+      _trendingEvents = await EventService.fetchTrendingEvents(city: city ?? _selectedCity);
       _lastTrendingFetchTime = DateTime.now();
+      print('📊 [EventProvider] Successfully fetched ${_trendingEvents.length} trending events');
     } catch (e) {
-      print('Error fetching trending events: $e');
+      print('📊 [EventProvider] Error fetching trending events: $e');
       // Keep existing trending events if fetch fails
     } finally {
       _isTrendingLoading = false;
+      print('📊 [EventProvider] Finished trending events fetch, notifying listeners');
       notifyListeners();
+    }
+  }
+
+  // Change selected city and fetch trending events for that city
+  Future<void> changeCity(String city) async {
+    print('🏙️ [EventProvider] changeCity called with: $city');
+    print('🏙️ [EventProvider] Current city: $_selectedCity');
+    
+    if (_selectedCity == city) {
+      print('🏙️ [EventProvider] City unchanged, skipping fetch');
+      return;
+    }
+    
+    print('🏙️ [EventProvider] Changing city from $_selectedCity to $city');
+    _selectedCity = city;
+    notifyListeners();
+    
+    // Fetch trending events for the new city
+    print('🏙️ [EventProvider] Fetching trending events for $city');
+    await fetchTrendingEvents(forceRefresh: true, city: city);
+    print('🏙️ [EventProvider] Finished fetching trending events for $city');
+  }
+
+  // Initialize city from user profile
+  void initializeCityFromProfile(String? userCity) {
+    // Only set if not already initialized and user has a valid city
+    if (_selectedCity == null && userCity != null && userCity.isNotEmpty) {
+      _selectedCity = userCity;
+      notifyListeners();
+    }
+  }
+
+  // Update city when user profile changes (called when user updates their profile)
+  Future<void> updateCityFromProfile(String? newUserCity) async {
+    if (newUserCity != null && newUserCity.isNotEmpty && newUserCity != _selectedCity) {
+      _selectedCity = newUserCity;
+      notifyListeners();
+      
+      // Fetch trending events for the new city
+      await fetchTrendingEvents(forceRefresh: true, city: newUserCity);
     }
   }
 

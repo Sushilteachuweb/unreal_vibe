@@ -9,6 +9,7 @@ import '../../providers/event_provider.dart';
 import '../../services/search_service.dart';
 import '../../utils/error_handler.dart';
 import '../../widgets/skeleton_loading.dart';
+import '../../widgets/app_bar_with_city.dart';
 
 class ExploreScreen extends StatefulWidget {
   const ExploreScreen({super.key});
@@ -27,10 +28,22 @@ class _ExploreScreenState extends State<ExploreScreen> {
   @override
   void initState() {
     super.initState();
-    // Only fetch events if needed (no cache or cache expired)
+    // Initialize city from user profile and fetch all events
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final eventProvider = context.read<EventProvider>();
-      eventProvider.fetchEventsIfNeeded();
+      final userProvider = context.read<UserProvider>();
+      
+      // Initialize city from user profile first
+      final userCity = userProvider.user?.city;
+      eventProvider.initializeCityFromProfile(userCity);
+      
+      // If user's city is in available cities, use it and fetch events
+      if (userCity != null && ['Delhi', 'Noida', 'Gurgaon'].contains(userCity)) {
+        eventProvider.changeCity(userCity);
+      } else {
+        // Otherwise fetch all events for current selected city (fallback to Noida)
+        eventProvider.fetchEventsIfNeeded();
+      }
     });
   }
 
@@ -163,9 +176,27 @@ class _ExploreScreenState extends State<ExploreScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<EventProvider>(
-      builder: (context, eventProvider, child) {
-        final filteredEvents = eventProvider.getFilteredEvents(selectedCategory);
+    return Consumer2<EventProvider, UserProvider>(
+      builder: (context, eventProvider, userProvider, child) {
+        // Check if user's city has changed and update EventProvider accordingly
+        final userCity = userProvider.user?.city;
+        if (userCity != null && 
+            userCity != eventProvider.selectedCity && 
+            ['Delhi', 'Noida', 'Gurgaon'].contains(userCity)) {
+          // Update EventProvider with new user city
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            eventProvider.updateCityFromProfile(userCity);
+          });
+        }
+
+        // Use all events instead of trending events
+        final filteredEvents = eventProvider.events.where((event) {
+          if (selectedCategory == 'All') return true;
+          return event.tags.any((tag) => 
+            !tag.toUpperCase().startsWith('AGE:') && 
+            tag.toLowerCase().contains(selectedCategory.toLowerCase())
+          );
+        }).toList();
 
         return _buildExploreContent(context, eventProvider, filteredEvents);
       },
@@ -176,90 +207,55 @@ class _ExploreScreenState extends State<ExploreScreen> {
 
     return Scaffold(
       backgroundColor: Colors.black,
-      appBar: _buildAppBar(),
-      body: eventProvider.isLoading && !eventProvider.hasData
-          ? _buildSkeletonLoading()
-          : eventProvider.error != null && !eventProvider.hasData
-              ? ErrorHandler.buildEmptyState(
-                  context: 'events',
-                  onRetry: () => eventProvider.fetchEvents(),
-                )
-              : RefreshLoadingIndicator(
-                  isLoading: eventProvider.isLoading && eventProvider.hasData,
-                  child: RefreshIndicator(
-                    onRefresh: _onRefresh,
-                    color: const Color(0xFF6958CA),
-                    backgroundColor: Colors.white,
-                    child: SingleChildScrollView(
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const SizedBox(height: 8),
-                          
-                          // Search Bar
-                          _buildSearchBar(),
-                          
-                          const SizedBox(height: 16),
-                          
-                          // Show search results or normal content
-                          if (_searchQuery.isNotEmpty) ...[
-                            const SizedBox(height: 16),
-                            _buildSearchResults(),
-                          ] else ...[
-                            // Category Chips
-                            _buildCategoryChips(),
-                            
-                            const SizedBox(height: 20),
-                            
-                            // Upcoming Events
-                            _buildUpcomingEventsSection(filteredEvents),
-                          ],
-                          
-                          const SizedBox(height: 100),
-                        ],
+      appBar: const AppBarWithCity(title: 'Unrealvibe'),
+      body: Stack(
+        children: [
+          // Main content
+          (eventProvider.isLoading && eventProvider.events.isEmpty)
+              ? _buildSkeletonLoading()
+              : eventProvider.error != null && eventProvider.events.isEmpty
+                  ? ErrorHandler.buildEmptyState(
+                      context: 'events',
+                      onRetry: () => eventProvider.fetchEvents(forceRefresh: true),
+                    )
+                  : RefreshLoadingIndicator(
+                      isLoading: eventProvider.isLoading && eventProvider.events.isNotEmpty,
+                      child: RefreshIndicator(
+                        onRefresh: _onRefresh,
+                        color: const Color(0xFF6958CA),
+                        backgroundColor: Colors.white,
+                        child: SingleChildScrollView(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const SizedBox(height: 8),
+                              
+                              // Search Bar
+                              _buildSearchBar(),
+                              
+                              const SizedBox(height: 16),
+                              
+                              // Show search results or normal content
+                              if (_searchQuery.isNotEmpty) ...[
+                                const SizedBox(height: 16),
+                                _buildSearchResults(),
+                              ] else ...[
+                                // Category Chips
+                                _buildCategoryChips(eventProvider),
+                                
+                                const SizedBox(height: 20),
+                                
+                                // Trending Events
+                                _buildTrendingEventsSection(filteredEvents),
+                              ],
+                              
+                              const SizedBox(height: 100),
+                            ],
+                          ),
+                        ),
                       ),
                     ),
-                  ),
-                ),
-    );
-  }
-
-  PreferredSizeWidget _buildAppBar() {
-    return AppBar(
-      backgroundColor: Colors.black,
-      elevation: 0,
-      automaticallyImplyLeading: false,
-      title: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          const Text(
-            'Unrealvibes',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          Consumer<UserProvider>(
-            builder: (context, userProvider, child) {
-              final userCity = userProvider.user?.city ?? 'Noida';
-              return Row(
-                children: [
-                  const Icon(Icons.location_on, color: Colors.white, size: 16),
-                  const SizedBox(width: 4),
-                  Text(
-                    userCity,
-                    style: TextStyle(
-                      color: Colors.white.withOpacity(0.9),
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              );
-            },
-          ),
         ],
       ),
     );
@@ -287,66 +283,79 @@ class _ExploreScreenState extends State<ExploreScreen> {
     );
   }
 
-  Widget _buildCategoryChips() {
+  Widget _buildCategoryChips(EventProvider eventProvider) {
+    // Get categories from all events instead of trending events
+    final Set<String> categories = {'All'};
+    
+    for (final event in eventProvider.events) {
+      for (final tag in event.tags) {
+        final cleanTag = tag.trim();
+        if (cleanTag.isNotEmpty && 
+            cleanTag.toLowerCase() != 'all' && 
+            !cleanTag.toUpperCase().startsWith('AGE:')) {
+          categories.add(cleanTag);
+        }
+      }
+    }
+    
+    final List<String> sortedCategories = categories.toList();
+    sortedCategories.remove('All');
+    sortedCategories.sort();
+    sortedCategories.insert(0, 'All');
+
     return SizedBox(
       height: 36,
-      child: Consumer<EventProvider>(
-        builder: (context, eventProvider, child) {
-          final availableCategories = eventProvider.getAvailableCategories();
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        itemCount: sortedCategories.length,
+        itemBuilder: (context, index) {
+          final category = sortedCategories[index];
+          final isSelected = category == selectedCategory;
           
-          return ListView.builder(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            itemCount: availableCategories.length,
-            itemBuilder: (context, index) {
-              final category = availableCategories[index];
-              final isSelected = category == selectedCategory;
-              
-              return Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: GestureDetector(
-                  onTap: () {
-                    setState(() {
-                      selectedCategory = category;
-                    });
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 8,
-                    ),
-                    decoration: BoxDecoration(
-                      color: isSelected ? const Color(0xFF6958CA) : const Color(0xFF1A1A1A),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Center(
-                      child: Text(
-                        category,
-                        style: TextStyle(
-                          color: isSelected ? Colors.white : Colors.grey[400],
-                          fontSize: 14,
-                          fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                        ),
-                      ),
+          return Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: GestureDetector(
+              onTap: () {
+                setState(() {
+                  selectedCategory = category;
+                });
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: isSelected ? const Color(0xFF6958CA) : const Color(0xFF1A1A1A),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Center(
+                  child: Text(
+                    category,
+                    style: TextStyle(
+                      color: isSelected ? Colors.white : Colors.grey[400],
+                      fontSize: 14,
+                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
                     ),
                   ),
                 ),
-              );
-            },
+              ),
+            ),
           );
         },
       ),
     );
   }
 
-  Widget _buildUpcomingEventsSection(List<Event> filteredEvents) {
+  Widget _buildTrendingEventsSection(List<Event> filteredEvents) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Upcoming Events',
+            'All Events',
             style: TextStyle(
               color: Colors.white,
               fontSize: 18,

@@ -19,6 +19,7 @@ class ProfileService {
     try {
       final token = await UserStorage.getToken();
       if (token == null) {
+        print("❌ No token found in storage");
         return {
           'success': false,
           'message': 'Authentication required. Please login again.',
@@ -26,11 +27,25 @@ class ProfileService {
       }
 
       print("👤 Calling Create Profile API: ${ApiConfig.createProfile}");
+      print("👤 Token (first 30 chars): ${token.substring(0, 30)}...");
+      print("👤 Token (last 30 chars): ...${token.substring(token.length - 30)}");
+      print("👤 Token length: ${token.length}");
       print("👤 Request Body: {name: $name, email: $email, city: $city, gender: $gender}");
+
+      final headers = await ApiConfig.getAuthHeadersWithCookies(token);
+      print("👤 Headers: ${headers.keys.join(', ')}");
+      
+      // Debug: Print the exact Authorization header being sent
+      print("👤 Authorization header: ${headers['Authorization']}");
+      if (headers['Cookie'] != null) {
+        print("👤 Cookie header: ${headers['Cookie']!.substring(0, 50)}...");
+      } else {
+        print("👤 No cookie header found");
+      }
 
       final response = await http.post(
         Uri.parse(ApiConfig.createProfile),
-        headers: ApiConfig.getAuthHeaders(token),
+        headers: headers,
         body: jsonEncode({
           "name": name,
           "email": email,
@@ -41,6 +56,37 @@ class ProfileService {
 
       print("👤 Raw Response: ${response.body}");
       print("👤 Status Code: ${response.statusCode}");
+      print("👤 Response Headers: ${response.headers}");
+
+      // Handle authentication errors specifically
+      if (response.statusCode == 401) {
+        print("❌ Authentication failed (401) - Token might be invalid or expired");
+        print("❌ Token being used: ${token.substring(0, 50)}...");
+        // Clear invalid token
+        await UserStorage.clearAll();
+        return {
+          'success': false,
+          'message': 'Session expired. Please login again.',
+          'requiresReauth': true,
+        };
+      }
+
+      if (response.statusCode == 403) {
+        print("❌ Authorization failed (403) - Insufficient permissions");
+        return {
+          'success': false,
+          'message': 'Access denied. Please contact support.',
+        };
+      }
+
+      // Handle non-JSON responses
+      if (!response.body.trim().startsWith('{')) {
+        print("❌ Invalid response format: ${response.body}");
+        return {
+          'success': false,
+          'message': 'Server error. Please try again later.',
+        };
+      }
 
       final data = jsonDecode(response.body);
       print("👤 Decoded JSON: $data");
@@ -102,16 +148,31 @@ class ProfileService {
       print("👤 Calling Complete Profile API: ${ApiConfig.completeProfile}");
       print("👤 Request Data: {name: $name, email: $email, city: $city, gender: $gender, bio: $bio, funFact: $funFact, interests: $interests}");
 
+      // Debug: Check if we have a token and cookie
+      print("👤 Token: ${token.substring(0, 30)}...");
+      final cookie = await UserStorage.getAccessTokenCookie();
+      if (cookie != null) {
+        print("👤 Cookie available: ${cookie.substring(0, 30)}...");
+      } else {
+        print("❌ No cookie found in storage!");
+      }
+
       var request = http.MultipartRequest(
         'PUT',
         Uri.parse(ApiConfig.completeProfile),
       );
 
-      // Add headers
-      request.headers.addAll({
-        'Authorization': 'Bearer $token',
-        'Accept': 'application/json',
-      });
+      // Add headers with cookies
+      final headers = await ApiConfig.getAuthHeadersWithCookies(token);
+      request.headers.addAll(headers);
+      
+      // Debug: Print headers being sent
+      print("👤 Headers being sent: ${request.headers}");
+      if (headers['Cookie'] != null) {
+        print("👤 Cookie header: ${headers['Cookie']!.substring(0, 50)}...");
+      } else {
+        print("👤 No cookie header found");
+      }
 
       // Add text fields
       request.fields['name'] = name;
@@ -212,7 +273,7 @@ class ProfileService {
         print("👤 Profile completed successfully");
         return {
           'success': true,
-          'message': data['message'] ?? 'Profile completed successfully',
+          'message': data['message'] ?? 'Profile updated successfully',
           'user': data['user'],
           'isProfileComplete': data['isProfileComplete'] ?? true,
         };
@@ -248,7 +309,7 @@ class ProfileService {
 
       final response = await http.get(
         Uri.parse(ApiConfig.getProfile),
-        headers: ApiConfig.getAuthHeaders(token),
+        headers: await ApiConfig.getAuthHeadersWithCookies(token),
       );
 
       print("👤 Raw Response: ${response.body}");

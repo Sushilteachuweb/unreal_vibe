@@ -112,8 +112,9 @@ void main() {
         final response = await TicketService.verifyPayment(
           eventId: eventId,
           orderId: orderId,
-          razorpayPaymentId: razorpayPaymentId,
-          razorpaySignature: razorpaySignature,
+          paymentId: razorpayPaymentId,
+          signature: razorpaySignature,
+          paymentMethod: 'razorpay',
           selectedTickets: selectedTickets,
         );
         

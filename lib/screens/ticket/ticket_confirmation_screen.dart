@@ -3,7 +3,7 @@ import '../../models/event_model.dart';
 import '../../models/ticket_model.dart';
 import '../../models/attendee_model.dart';
 import '../../models/purchased_ticket_model.dart';
-import '../../services/dummy_razorpay_service.dart';
+import '../../services/phonepe_dummy_service.dart';
 import '../../services/ticket_service.dart';
 import 'payment_success_screen.dart';
 
@@ -28,7 +28,7 @@ class TicketConfirmationScreen extends StatefulWidget {
 }
 
 class _TicketConfirmationScreenState extends State<TicketConfirmationScreen> {
-  final DummyRazorpayService _razorpayService = DummyRazorpayService();
+  final DummyPhonePeService _phonePeService = DummyPhonePeService();
   bool _isProcessingPayment = false;
   
   // Promo code related variables
@@ -40,11 +40,11 @@ class _TicketConfirmationScreenState extends State<TicketConfirmationScreen> {
   @override
   void initState() {
     super.initState();
-    _initializeRazorpay();
+    _initializePhonePe();
   }
 
-  void _initializeRazorpay() {
-    _razorpayService.initialize(
+  void _initializePhonePe() {
+    _phonePeService.initialize(
       onPaymentSuccess: _handlePaymentSuccess,
       onPaymentError: _handlePaymentError,
     );
@@ -127,8 +127,8 @@ class _TicketConfirmationScreenState extends State<TicketConfirmationScreen> {
     // Get first attendee details for payment
     final firstAttendee = widget.attendees.first;
     
-    // Open Razorpay checkout
-    _razorpayService.openCheckout(
+    // Open PhonePe checkout
+    _phonePeService.openCheckout(
       context: context,
       amount: _total,
       name: firstAttendee.fullName,
@@ -149,7 +149,7 @@ class _TicketConfirmationScreenState extends State<TicketConfirmationScreen> {
     }
   }
 
-  void _handlePaymentSuccess(DummyPaymentSuccessResponse response) async {
+  void _handlePaymentSuccess(DummyPhonePePaymentSuccessResponse response) async {
     try {
       // Show loading
       _showLoadingDialog('Verifying payment...');
@@ -168,8 +168,10 @@ class _TicketConfirmationScreenState extends State<TicketConfirmationScreen> {
       final verificationResponse = await TicketService.verifyPayment(
         eventId: widget.event.id,
         orderId: widget.orderId,
-        razorpayPaymentId: response.paymentId,
-        razorpaySignature: response.signature,
+        paymentId: response.paymentId,
+        signature: response.signature,
+        transactionId: response.transactionId,
+        paymentMethod: 'phonepe',
         selectedTickets: selectedTickets,
         attendees: attendeesData,
       );
@@ -189,7 +191,7 @@ class _TicketConfirmationScreenState extends State<TicketConfirmationScreen> {
     }
   }
 
-  void _handlePaymentError(DummyPaymentFailureResponse response) {
+  void _handlePaymentError(DummyPhonePePaymentFailureResponse response) {
     _showErrorMessage('Payment failed: ${response.message}');
   }
 

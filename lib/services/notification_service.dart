@@ -21,7 +21,7 @@ class NotificationService {
       
       final response = await http.get(
         Uri.parse('${ApiConfig.getNotifications}?page=$page&limit=$limit'),
-        headers: ApiConfig.getAuthHeaders(token),
+        headers: await ApiConfig.getAuthHeadersWithCookies(token),
       ).timeout(const Duration(seconds: 15));
 
       print('📊 Notifications API Response: ${response.statusCode}');
@@ -81,7 +81,7 @@ class NotificationService {
 
       final response = await http.get(
         Uri.parse(ApiConfig.getNotificationsCount),
-        headers: ApiConfig.getAuthHeaders(token),
+        headers: await ApiConfig.getAuthHeadersWithCookies(token),
       ).timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
@@ -108,7 +108,7 @@ class NotificationService {
       
       final response = await http.post(
         Uri.parse(ApiConfig.markNotificationsRead),
-        headers: ApiConfig.getAuthHeaders(token),
+        headers: await ApiConfig.getAuthHeadersWithCookies(token),
         body: json.encode({
           'notification_ids': notificationIds,
         }),
@@ -154,7 +154,7 @@ class NotificationService {
       
       final response = await http.delete(
         Uri.parse(ApiConfig.deleteNotification(notificationId)),
-        headers: ApiConfig.getAuthHeaders(token),
+        headers: await ApiConfig.getAuthHeadersWithCookies(token),
       ).timeout(const Duration(seconds: 10));
 
       print('📊 Delete response: ${response.statusCode}');

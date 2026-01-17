@@ -2,6 +2,7 @@
 
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 import 'api_routes.dart';
 import 'user_storage.dart';
 
@@ -30,7 +31,7 @@ class AuthService {
           
           final response = await http.get(
             Uri.parse(endpoint),
-            headers: ApiConfig.getAuthHeaders(token),
+            headers: await ApiConfig.getAuthHeadersWithCookies(token),
           ).timeout(const Duration(seconds: 5));
           
           print('🔐 Response: ${response.statusCode}');
@@ -134,25 +135,93 @@ class AuthService {
 
       print("🔐 Raw Response: ${response.body}");
       print("🔐 Status Code: ${response.statusCode}");
+      print("🔐 Response Headers: ${response.headers}");
 
+      // Decode JSON first
       final data = jsonDecode(response.body);
       print("🔐 Decoded JSON: $data");
+
+      // Check for cookies in response
+      final setCookieHeader = response.headers['set-cookie'];
+      if (setCookieHeader != null) {
+        print("🍪 Set-Cookie header found: $setCookieHeader");
+        
+        // Extract accessToken cookie if present
+        final cookieRegex = RegExp(r'accessToken=([^;]+)');
+        final match = cookieRegex.firstMatch(setCookieHeader);
+        if (match != null) {
+          final accessToken = match.group(1);
+          print("🍪 AccessToken cookie: ${accessToken?.substring(0, 30)}...");
+          
+          // Save the cookie for future requests
+          await UserStorage.saveAccessTokenCookie(accessToken!);
+        } else {
+          print("🍪 No accessToken cookie found in Set-Cookie header");
+          // Fallback: Use the JWT token as the cookie value
+          if (data['token'] != null) {
+            print("🍪 Using JWT token as cookie fallback");
+            await UserStorage.saveAccessTokenCookie(data['token']);
+          }
+        }
+      } else {
+        print("🍪 No Set-Cookie header found");
+        // Fallback: Use the JWT token as the cookie value
+        if (data['token'] != null) {
+          print("🍪 Using JWT token as cookie fallback");
+          await UserStorage.saveAccessTokenCookie(data['token']);
+        }
+      }
 
       if (response.statusCode == 200 && data['success'] == true) {
         // Save token
         if (data['token'] != null) {
+          print("═══════════════════════════════════════════════════════");
+          print("🔐 TOKEN RECEIVED FROM LOGIN");
+          print("═══════════════════════════════════════════════════════");
+          print("🔐 Token from API: ${data['token']}");
+          print("🔐 Token length: ${data['token'].length}");
+          print("🔐 Token starts with: ${data['token'].substring(0, 30)}...");
+          print("🔐 Token ends with: ...${data['token'].substring(data['token'].length - 20)}");
+          
           await UserStorage.saveToken(data['token']);
-          print("🔐 Token saved successfully");
+          print("✅ Token saved to storage");
+          
+          // Verify token was saved correctly
+          final savedToken = await UserStorage.getToken();
+          if (savedToken != data['token']) {
+            print("❌ TOKEN SAVE VERIFICATION FAILED!");
+            print("❌ Expected: ${data['token']}");
+            print("❌ Got: $savedToken");
+            print("═══════════════════════════════════════════════════════\n");
+            return {
+              'success': false,
+              'message': 'Token save failed. Please try again.',
+            };
+          }
+          print("✅ Token save verified successfully");
+          print("✅ Saved token matches API token");
+          print("═══════════════════════════════════════════════════════\n");
+        }
+
+        // Save additional user info if available
+        if (data['role'] != null) {
+          // You might want to save role for future use
+          print("🔐 User role: ${data['role']}");
         }
 
         // Save login status
         await UserStorage.saveLoginStatus(true);
+        
+        // Save login timestamp for debugging
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setInt('login_timestamp', DateTime.now().millisecondsSinceEpoch);
 
         print("🔐 OTP verified successfully");
         return {
           'success': true,
           'message': data['message'] ?? 'Login successful',
           'token': data['token'],
+          'role': data['role'],
           'isProfileComplete': data['isProfileComplete'] ?? false,
         };
       } else {
@@ -182,7 +251,7 @@ class AuthService {
         
         final response = await http.post(
           Uri.parse(ApiConfig.logout),
-          headers: ApiConfig.getAuthHeaders(token),
+          headers: await ApiConfig.getAuthHeadersWithCookies(token),
         );
 
         print("🚪 Status Code: ${response.statusCode}");

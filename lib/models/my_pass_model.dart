@@ -48,7 +48,15 @@ class MyPass {
         // eventId is an object with event details
         eventIdString = eventData['_id'] ?? '';
         eventName = eventData['eventName'] ?? '';
-        eventImage = eventData['eventImage'] ?? '';
+        
+        // Handle eventImage which can be string or object
+        final imageData = eventData['eventImage'];
+        if (imageData is Map<String, dynamic>) {
+          eventImage = imageData['url'] ?? '';
+        } else if (imageData is String) {
+          eventImage = imageData;
+        }
+        
         eventTime = eventData['time'] ?? '';
         city = eventData['city'] ?? '';
         eventDate = DateTime.tryParse(eventData['date'] ?? '') ?? DateTime.now();
@@ -56,10 +64,28 @@ class MyPass {
         // eventId is just a string
         eventIdString = eventData;
         eventName = json['eventName'] ?? '';
-        eventImage = json['eventImage'] ?? '';
+        
+        // Handle eventImage which can be string or object
+        final imageData = json['eventImage'];
+        if (imageData is Map<String, dynamic>) {
+          eventImage = imageData['url'] ?? '';
+        } else if (imageData is String) {
+          eventImage = imageData;
+        }
+        
         eventTime = json['eventTime'] ?? '';
         city = json['city'] ?? '';
         eventDate = DateTime.tryParse(json['eventDate'] ?? '') ?? DateTime.now();
+      }
+      
+      // Handle qrCode which can be string or object
+      String? qrCodeString;
+      final qrData = json['qrCode'];
+      if (qrData is Map<String, dynamic>) {
+        // Convert object to JSON string for QR code generation
+        qrCodeString = qrData.toString();
+      } else if (qrData is String) {
+        qrCodeString = qrData;
       }
       
       final pass = MyPass(
@@ -75,7 +101,7 @@ class MyPass {
         venue: json['venue'] ?? 'Venue', // Default venue since it's not in the API response
         city: city,
         status: json['status'] ?? 'active',
-        qrCode: json['qrCode'],
+        qrCode: qrCodeString,
         createdAt: DateTime.tryParse(json['createdAt'] ?? '') ?? DateTime.now(),
       );
       

@@ -22,13 +22,21 @@ class EventService {
 
     Exception? lastException;
 
+    // Get auth token
+    final token = await UserStorage.getToken();
+    final headers = token != null && token.isNotEmpty 
+        ? await ApiConfig.getAuthHeadersWithCookies(token)
+        : ApiConfig.headers;
+    
+    print('🔐 Using ${token != null ? "authenticated" : "non-authenticated"} headers for events');
+
     for (String endpoint in endpoints) {
       try {
         print('Attempting to fetch events from: $endpoint');
         
         final response = await http.get(
           Uri.parse(endpoint),
-          headers: ApiConfig.headers,
+          headers: headers,
         ).timeout(const Duration(seconds: 10));
 
         print('API Response Status: ${response.statusCode}');
@@ -83,9 +91,15 @@ class EventService {
     throw Exception(errorMessage);
   }
 
-  static Future<List<Event>> fetchTrendingEvents() async {
+  static Future<List<Event>> fetchTrendingEvents({String? city}) async {
     try {
-      print('Attempting to fetch trending events from: ${ApiConfig.getTrendingEvents}');
+      // Build URL with city parameter if provided
+      String url = ApiConfig.getTrendingEvents;
+      if (city != null && city.isNotEmpty) {
+        url = '${ApiConfig.getTrendingEvents}&city=${Uri.encodeComponent(city)}';
+      }
+      
+      print('Attempting to fetch trending events from: $url');
       
       // Get auth token
       final token = await UserStorage.getToken();
@@ -94,8 +108,8 @@ class EventService {
       }
       
       final response = await http.get(
-        Uri.parse(ApiConfig.getTrendingEvents),
-        headers: ApiConfig.getAuthHeaders(token),
+        Uri.parse(url),
+        headers: await ApiConfig.getAuthHeadersWithCookies(token),
       ).timeout(const Duration(seconds: 10));
 
       print('Trending Events API Response Status: ${response.statusCode}');
@@ -108,7 +122,7 @@ class EventService {
           if (data['success'] == true && data['events'] != null) {
             final List<dynamic> eventsJson = data['events'];
             final events = eventsJson.map((eventJson) => Event.fromJson(eventJson)).toList();
-            print('Successfully parsed ${events.length} trending events');
+            print('Successfully parsed ${events.length} trending events for city: ${city ?? "all"}');
             return events;
           } else {
             print('Invalid trending events response format: $data');
@@ -140,7 +154,7 @@ class EventService {
       
       final response = await http.post(
         Uri.parse(ApiConfig.saveEvent(eventId)),
-        headers: ApiConfig.getAuthHeaders(token),
+        headers: await ApiConfig.getAuthHeadersWithCookies(token),
       ).timeout(const Duration(seconds: 10));
 
       print('Save API Response Status: ${response.statusCode}');
@@ -192,7 +206,7 @@ class EventService {
       
       final response = await http.post(
         Uri.parse(ApiConfig.shareEvent(eventId)),
-        headers: ApiConfig.getAuthHeaders(token),
+        headers: await ApiConfig.getAuthHeadersWithCookies(token),
       ).timeout(const Duration(seconds: 10));
 
       print('Share API Response Status: ${response.statusCode}');
@@ -243,7 +257,7 @@ class EventService {
       
       final response = await http.get(
         Uri.parse(ApiConfig.getSavedEvents),
-        headers: ApiConfig.getAuthHeaders(token),
+        headers: await ApiConfig.getAuthHeadersWithCookies(token),
       ).timeout(const Duration(seconds: 10));
 
       print('Saved Events API Response Status: ${response.statusCode}');
@@ -271,9 +285,25 @@ class EventService {
           print('JSON parsing error in saved events: $jsonError');
           return [];
         }
+      } else if (response.statusCode == 500) {
+        print('❌ Server error (500) in saved events API - backend issue');
+        print('❌ Server response: ${response.body}');
+        
+        // Check if it's the specific computeEventExtras error
+        if (response.body.contains('computeEventExtras is not defined')) {
+          print('💡 Known server bug: computeEventExtras function missing');
+          throw Exception('Server error: The saved events feature is temporarily unavailable due to a backend issue. Please contact support or try again later.');
+        } else {
+          throw Exception('Server error: Unable to fetch saved events. Please try again later.');
+        }
       } else {
         print('Saved Events HTTP ${response.statusCode}: ${response.body}');
-        return [];
+        
+        if (response.statusCode == 401) {
+          throw Exception('Authentication required. Please log in again.');
+        } else {
+          throw Exception('Failed to fetch saved events. Please try again.');
+        }
       }
     } catch (e) {
       print('Error fetching saved events: $e');
@@ -343,9 +373,17 @@ class EventService {
 
       print('Filter API URL: $url');
       
+      // Get auth token
+      final token = await UserStorage.getToken();
+      final headers = token != null && token.isNotEmpty 
+          ? await ApiConfig.getAuthHeadersWithCookies(token)
+          : ApiConfig.headers;
+      
+      print('🔐 Using ${token != null ? "authenticated" : "non-authenticated"} headers for filter');
+      
       final response = await http.get(
         Uri.parse(url),
-        headers: ApiConfig.headers,
+        headers: headers,
       ).timeout(const Duration(seconds: 10));
 
       print('Filter API Response Status: ${response.statusCode}');

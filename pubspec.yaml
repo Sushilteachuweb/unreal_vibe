@@ -42,6 +42,7 @@ dependencies:
   http_parser: ^4.0.2
   image_picker: ^1.0.7
   razorpay_flutter: ^1.4.0
+  crypto: ^3.0.3
   video_player: ^2.7.2
   qr_flutter: ^4.1.0
   share_plus: ^7.2.2
@@ -65,6 +66,7 @@ dev_dependencies:
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
   flutter_launcher_icons: ^0.13.1
+  flutter_native_splash: ^2.3.10
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -122,3 +124,10 @@ flutter_launcher_icons:
   image_path: "assets/images/app-icon-new.png"
   min_sdk_android: 21
   remove_alpha_ios: true
+
+# Native Splash Screen Configuration - Transparent to show Flutter splash immediately
+flutter_native_splash:
+  color: "#000000"
+  # Remove image to make it invisible/minimal
+  android_12:
+    color: "#000000"

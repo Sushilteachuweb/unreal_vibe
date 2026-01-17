@@ -237,10 +237,24 @@ class Event {
       eventLocation = EventLocation.fromJson(json['location']);
     }
 
-    // Build image URL - assuming the API returns relative paths
-    String imageUrl = json['eventImage'] ?? 'assets/images/house_party.jpg';
-    if (imageUrl.startsWith('/uploads/')) {
-      imageUrl = 'http://api.unrealvibe.com$imageUrl';
+    // Build image URL - handle both object and string formats
+    String imageUrl = 'assets/images/house_party.jpg';
+    
+    if (json['eventImage'] != null) {
+      if (json['eventImage'] is Map) {
+        // New format: object with url, publicId, version
+        imageUrl = json['eventImage']['url'] ?? 'assets/images/house_party.jpg';
+        print('📸 Parsed image URL from object: $imageUrl');
+      } else if (json['eventImage'] is String) {
+        // Old format: string URL
+        imageUrl = json['eventImage'];
+        if (imageUrl.startsWith('/uploads/')) {
+          imageUrl = 'http://api.unrealvibe.com$imageUrl';
+        }
+        print('📸 Parsed image URL from string: $imageUrl');
+      }
+    } else {
+      print('⚠️ No eventImage found in JSON, using default');
     }
 
     // Parse categories

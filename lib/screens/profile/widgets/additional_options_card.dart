@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../../services/invite_service.dart';
+import '../../../services/user_storage.dart';
+import '../../../services/api_routes.dart';
+import '../../../services/event_service.dart';
 import '../saved_events_screen.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 class AdditionalOptionsCard extends StatelessWidget {
   const AdditionalOptionsCard({Key? key}) : super(key: key);
@@ -26,6 +31,8 @@ class AdditionalOptionsCard extends StatelessWidget {
           }),
           _buildDivider(),
           _buildSettingsItem(Icons.share, 'Invite Friends', () => InviteService.showInviteDialog(context)),
+          _buildDivider(),
+          _buildSettingsItem(Icons.bug_report, 'Debug Auth & Saved Events', () => _debugAuthAndSavedEvents(context)),
         ],
       ),
     );
@@ -319,5 +326,262 @@ Best regards!
       emailText,
       subject: 'Discover Amazing Events with Unreal Vibe!',
     );
+  }
+
+  // Debug function to test authentication and saved events
+  Future<void> _debugAuthAndSavedEvents(BuildContext context) async {
+    // Show loading dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const AlertDialog(
+        backgroundColor: Color(0xFF1A1A1A),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(color: Color(0xFF6366F1)),
+            SizedBox(height: 16),
+            Text(
+              'Running debug tests...',
+              style: TextStyle(color: Colors.white),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    List<String> debugResults = [];
+    
+    try {
+      // Check authentication state
+      debugResults.add('🔐 AUTHENTICATION CHECK');
+      debugResults.add('========================');
+      
+      final token = await UserStorage.getToken();
+      final isLoggedIn = await UserStorage.getLoginStatus();
+      
+      debugResults.add('🔑 Token exists: ${token != null}');
+      debugResults.add('🔑 Is logged in: $isLoggedIn');
+      
+      if (token != null && token.isNotEmpty) {
+        debugResults.add('🔑 Token preview: ${token.substring(0, 30)}...');
+        debugResults.add('🔑 Token length: ${token.length}');
+        
+        // Test different API endpoints
+        debugResults.add('\n📍 API ENDPOINT TESTS');
+        debugResults.add('====================');
+        
+        // First test the working save event API for comparison
+        debugResults.add('\n🧪 Testing Save Event (Known Working):');
+        try {
+          final saveUrl = 'https://api.unrealvibe.com/api/event/69621f0b601145b4cb10676b/save';
+          final saveHeaders = await ApiConfig.getAuthHeadersWithCookies(token);
+          final saveResponse = await http.post(
+            Uri.parse(saveUrl),
+            headers: saveHeaders,
+          ).timeout(const Duration(seconds: 10));
+          
+          debugResults.add('📊 Save Event Status: ${saveResponse.statusCode}');
+          if (saveResponse.statusCode == 200) {
+            debugResults.add('✅ Save event works with current auth method');
+          } else {
+            debugResults.add('❌ Save event failed - auth issue?');
+          }
+        } catch (e) {
+          debugResults.add('❌ Save event error: $e');
+        }
+        
+        // Now test saved events with different auth methods
+        debugResults.add('\n🔍 Testing Saved Events with Different Auth Methods:');
+        
+        // Method 1: Bearer + Cookie (current)
+        debugResults.add('\n1️⃣ Bearer + Cookie (Current Method):');
+        try {
+          final headers1 = await ApiConfig.getAuthHeadersWithCookies(token);
+          final response1 = await http.get(
+            Uri.parse('https://api.unrealvibe.com/api/event/saved-events'),
+            headers: headers1,
+          ).timeout(const Duration(seconds: 10));
+          
+          debugResults.add('📊 Status: ${response1.statusCode}');
+          debugResults.add('📊 Response: ${response1.body}');
+          
+          if (response1.statusCode == 500 && response1.body.contains('computeEventExtras')) {
+            debugResults.add('🐛 Server bug confirmed with Bearer+Cookie');
+          }
+        } catch (e) {
+          debugResults.add('❌ Bearer+Cookie error: $e');
+        }
+        
+        // Method 2: Bearer only (old method)
+        debugResults.add('\n2️⃣ Bearer Only (Old Method):');
+        try {
+          final headers2 = {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'Authorization': 'Bearer $token',
+          };
+          final response2 = await http.get(
+            Uri.parse('https://api.unrealvibe.com/api/event/saved-events'),
+            headers: headers2,
+          ).timeout(const Duration(seconds: 10));
+          
+          debugResults.add('📊 Status: ${response2.statusCode}');
+          debugResults.add('📊 Response: ${response2.body}');
+          
+          if (response2.statusCode == 500 && response2.body.contains('computeEventExtras')) {
+            debugResults.add('🐛 Same server bug with Bearer only');
+          }
+        } catch (e) {
+          debugResults.add('❌ Bearer only error: $e');
+        }
+        
+        // Method 3: Cookie only
+        debugResults.add('\n3️⃣ Cookie Only:');
+        try {
+          final headers3 = {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'Cookie': 'accessToken=$token',
+          };
+          final response3 = await http.get(
+            Uri.parse('https://api.unrealvibe.com/api/event/saved-events'),
+            headers: headers3,
+          ).timeout(const Duration(seconds: 10));
+          
+          debugResults.add('📊 Status: ${response3.statusCode}');
+          debugResults.add('📊 Response: ${response3.body}');
+          
+          if (response3.statusCode == 500 && response3.body.contains('computeEventExtras')) {
+            debugResults.add('🐛 Same server bug with Cookie only');
+          }
+        } catch (e) {
+          debugResults.add('❌ Cookie only error: $e');
+        }
+        
+        // Test other working endpoints for comparison
+        final testEndpoints = [
+          {'name': 'My Passes', 'url': 'https://api.unrealvibe.com/api/passes/my-passes'},
+          {'name': 'Regular Events', 'url': 'https://api.unrealvibe.com/api/event/events'},
+        ];
+        
+        for (final endpoint in testEndpoints) {
+          try {
+            debugResults.add('\n📍 Testing: ${endpoint['name']}');
+            
+            final authHeaders = await ApiConfig.getAuthHeadersWithCookies(token);
+            final response = await http.get(
+              Uri.parse(endpoint['url']!),
+              headers: authHeaders,
+            ).timeout(const Duration(seconds: 10));
+            
+            debugResults.add('📊 Status: ${response.statusCode}');
+            
+            if (response.statusCode == 200) {
+              debugResults.add('✅ ${endpoint['name']} works with current auth');
+              try {
+                final data = json.decode(response.body);
+                if (endpoint['name'] == 'Regular Events' && data['events'] != null) {
+                  final events = data['events'] as List? ?? [];
+                  debugResults.add('📋 Events count: ${events.length}');
+                } else if (endpoint['name'] == 'My Passes' && data['passes'] != null) {
+                  final passes = data['passes'] as List? ?? [];
+                  debugResults.add('📋 Passes count: ${passes.length}');
+                }
+              } catch (e) {
+                debugResults.add('⚠️ JSON parsing error: $e');
+              }
+            } else if (response.statusCode == 401) {
+              debugResults.add('❌ 401 Unauthorized');
+              if (response.body.contains('Invalid or expired token')) {
+                debugResults.add('💡 Token expired - need to log in again');
+              } else {
+                debugResults.add('💡 Authentication failed');
+              }
+            } else {
+              debugResults.add('❌ HTTP ${response.statusCode}');
+              debugResults.add('📋 Response: ${response.body}');
+            }
+          } catch (e) {
+            debugResults.add('❌ Network error: $e');
+          }
+        }
+        
+        // Test EventService directly
+        debugResults.add('\n🧪 EVENT SERVICE TEST');
+        debugResults.add('====================');
+        
+        try {
+          final savedEvents = await EventService.fetchSavedEvents(forceRefresh: true);
+          debugResults.add('✅ EventService.fetchSavedEvents() success');
+          debugResults.add('📋 Returned ${savedEvents.length} saved events');
+        } catch (e) {
+          debugResults.add('❌ EventService.fetchSavedEvents() failed: $e');
+        }
+        
+      } else {
+        debugResults.add('❌ No token found - user not logged in');
+      }
+      
+      debugResults.add('\n💡 ANALYSIS & RECOMMENDATIONS');
+      debugResults.add('================================');
+      if (token == null) {
+        debugResults.add('1. User needs to log in');
+      } else {
+        debugResults.add('🔍 Authentication Method Analysis:');
+        debugResults.add('- If ALL auth methods return same 500 error: SERVER BUG');
+        debugResults.add('- If some methods work, others fail: AUTH METHOD ISSUE');
+        debugResults.add('- If save works but fetch fails: ENDPOINT-SPECIFIC BUG');
+        debugResults.add('');
+        debugResults.add('💡 Next Steps:');
+        debugResults.add('1. If seeing 401 errors: Log out and log back in');
+        debugResults.add('2. If no saved events: Save an event first');
+        debugResults.add('3. If 500 errors: Contact backend team about server bug');
+        debugResults.add('4. Pull down to refresh in Saved Events screen');
+      }
+      
+    } catch (e) {
+      debugResults.add('❌ Debug test failed: $e');
+    }
+    
+    // Close loading dialog
+    if (context.mounted) {
+      Navigator.of(context).pop();
+      
+      // Show results dialog
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          backgroundColor: const Color(0xFF1A1A1A),
+          title: const Text(
+            'Debug Results',
+            style: TextStyle(color: Colors.white, fontSize: 18),
+          ),
+          content: SizedBox(
+            width: double.maxFinite,
+            height: 400,
+            child: SingleChildScrollView(
+              child: Text(
+                debugResults.join('\n'),
+                style: const TextStyle(
+                  color: Colors.white70,
+                  fontSize: 12,
+                  fontFamily: 'monospace',
+                ),
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text(
+                'Close',
+                style: TextStyle(color: Color(0xFF6366F1)),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
   }
 }

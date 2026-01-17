@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../providers/user_provider.dart';
+import '../../providers/event_provider.dart';
 import '../../utils/responsive_helper.dart';
 import '../../services/host_service.dart';
+import '../../navigation/main_navigation.dart';
 import 'success_screen.dart';
+import '../../widgets/app_bar_with_city.dart';
 
 class CreateScreen extends StatefulWidget {
   const CreateScreen({Key? key}) : super(key: key);
@@ -25,6 +28,21 @@ class _CreateScreenState extends State<CreateScreen> {
   bool _isLoading = false;
 
   final List<String> _cities = ['Noida', 'Delhi', 'Gurgaon'];
+
+  @override
+  void initState() {
+    super.initState();
+    // Initialize EventProvider with user's city
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final eventProvider = context.read<EventProvider>();
+      final userProvider = context.read<UserProvider>();
+      
+      // Initialize city from user profile if available
+      if (userProvider.user?.city != null) {
+        eventProvider.initializeCityFromProfile(userProvider.user!.city);
+      }
+    });
+  }
 
   @override
   void dispose() {
@@ -147,8 +165,9 @@ class _CreateScreenState extends State<CreateScreen> {
           } else if (result.statusCode == 401 || result.statusCode == 403) {
             errorTitle = 'Authentication Failed';
             errorMessage = 'Your session has expired. Please log in again.';
-          } else if (result.message.toLowerCase().contains('pending request') || 
-                     result.message.toLowerCase().contains('already have')) {
+          } else if (result.message.toLowerCase().contains('pending') || 
+                     result.message.toLowerCase().contains('already have') ||
+                     result.message.toLowerCase().contains('wait for approval')) {
             errorTitle = 'Request Already Submitted';
             errorMessage = 'You already have a pending host request. Our team will review it and get back to you soon.';
           } else if (result.message.toLowerCase().contains('duplicate')) {
@@ -184,100 +203,73 @@ class _CreateScreenState extends State<CreateScreen> {
         return AlertDialog(
           backgroundColor: const Color(0xFF1C1C1E),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(20),
           ),
-          title: Text(
-            title,
-            style: const TextStyle(
-              color: Colors.white, 
-              fontWeight: FontWeight.bold,
-              fontSize: 18,
-            ),
-          ),
+          contentPadding: const EdgeInsets.fromLTRB(24, 24, 24, 20),
           content: Column(
             mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Icon
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: const Color(0xFF6958CA).withOpacity(0.15),
+                ),
+                child: const Icon(
+                  Icons.info_outline,
+                  color: Color(0xFF6958CA),
+                  size: 28,
+                ),
+              ),
+              const SizedBox(height: 20),
+              // Title
+              Text(
+                title,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 20,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 12),
+              // Message
               Text(
                 message,
                 style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  height: 1.4,
+                  color: Color(0xFF9CA3AF),
+                  fontSize: 15,
+                  height: 1.5,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 24),
+              // Button
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  style: TextButton.styleFrom(
+                    backgroundColor: const Color(0xFF6958CA),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: const Text(
+                    'Got it',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                 ),
               ),
-              if (details != null && details.isNotEmpty) ...[
-                const SizedBox(height: 16),
-                Theme(
-                  data: Theme.of(context).copyWith(
-                    dividerColor: Colors.transparent,
-                  ),
-                  child: ExpansionTile(
-                    tilePadding: EdgeInsets.zero,
-                    childrenPadding: EdgeInsets.zero,
-                    title: const Text(
-                      'Technical Details',
-                      style: TextStyle(
-                        color: Color(0xFF9CA3AF), 
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    iconColor: const Color(0xFF9CA3AF),
-                    collapsedIconColor: const Color(0xFF9CA3AF),
-                    children: [
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(12),
-                        margin: const EdgeInsets.only(top: 8),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF0F0F0F),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                            color: const Color(0xFF2C2C2E),
-                            width: 1,
-                          ),
-                        ),
-                        child: Text(
-                          details,
-                          style: const TextStyle(
-                            color: Color(0xFF6B7280),
-                            fontSize: 12,
-                            fontFamily: 'monospace',
-                            height: 1.3,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
             ],
           ),
-          actions: [
-            Container(
-              width: double.infinity,
-              height: 44,
-              margin: const EdgeInsets.only(top: 8),
-              child: TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                style: TextButton.styleFrom(
-                  backgroundColor: const Color(0xFF6958CA),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                child: const Text(
-                  'Got it',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ),
-          ],
         );
       },
     );
@@ -303,10 +295,142 @@ class _CreateScreenState extends State<CreateScreen> {
   Widget build(BuildContext context) {
     final padding = ResponsiveHelper.getResponsivePadding(context, 16.0);
     final maxWidth = ResponsiveHelper.getMaxContentWidth(context);
+    final userProvider = Provider.of<UserProvider>(context);
+    final user = userProvider.user;
     
+    // Check if profile is complete and documents are uploaded
+    final isProfileComplete = user?.isProfileComplete ?? false;
+    final profileCompletion = user?.profileCompletion ?? 0;
+    final hasAllDocuments = user?.documents?.aadhaar != null && 
+                            user?.documents?.pan != null && 
+                            user?.documents?.drivingLicense != null;
+    
+    // Show requirements screen if not eligible (removed host mode check)
+    if (!isProfileComplete || !hasAllDocuments) {
+      return Scaffold(
+        backgroundColor: Colors.black,
+        appBar: const AppBarWithCity(title: 'Unrealvibe'),
+        body: Center(
+          child: Container(
+            constraints: BoxConstraints(maxWidth: maxWidth),
+            child: SingleChildScrollView(
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: padding),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const SizedBox(height: 40),
+                    // Icon
+                    Container(
+                      width: 120,
+                      height: 120,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: const Color(0xFF1C1C1E),
+                        border: Border.all(
+                          color: const Color(0xFF6958CA).withOpacity(0.3),
+                          width: 2,
+                        ),
+                      ),
+                      child: const Icon(
+                        Icons.lock_outline,
+                        size: 60,
+                        color: Color(0xFF6958CA),
+                      ),
+                    ),
+                    const SizedBox(height: 32),
+                    // Title
+                    Text(
+                      'Complete Your Profile',
+                      style: TextStyle(
+                        fontSize: ResponsiveHelper.getResponsiveFontSize(context, 28),
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 16),
+                    // Description
+                    Text(
+                      'To host a party, you need to complete your profile and upload all required documents.',
+                      style: TextStyle(
+                        fontSize: ResponsiveHelper.getResponsiveFontSize(context, 15),
+                        color: const Color(0xFF9CA3AF),
+                        height: 1.5,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 40),
+                    // Requirements checklist
+                    _buildRequirementCard(
+                      icon: Icons.person,
+                      title: 'Profile Completion',
+                      description: 'Complete your profile with all required information',
+                      isComplete: isProfileComplete,
+                      progress: '$profileCompletion%',
+                    ),
+                    const SizedBox(height: 16),
+                    _buildRequirementCard(
+                      icon: Icons.upload_file,
+                      title: 'Upload Documents',
+                      description: 'Upload Aadhaar, PAN Card, and Driving License',
+                      isComplete: hasAllDocuments,
+                      progress: hasAllDocuments ? 'Complete' : 'Pending',
+                    ),
+                    const SizedBox(height: 40),
+                    // Action button
+                    Container(
+                      width: double.infinity,
+                      height: 56,
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFFFF4081), Color(0xFFE91E63)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(28),
+                      ),
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          onTap: () {
+                            // Navigate back to main navigation and switch to profile tab (index 4)
+                            Navigator.of(context).pushAndRemoveUntil(
+                              MaterialPageRoute(
+                                builder: (context) => const MainNavigation(initialIndex: 4),
+                              ),
+                              (route) => false,
+                            );
+                          },
+                          borderRadius: BorderRadius.circular(28),
+                          child: Container(
+                            alignment: Alignment.center,
+                            child: const Text(
+                              'Go to Profile',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 40),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+    
+    // Original host party form
     return Scaffold(
       backgroundColor: Colors.black,
-      appBar: _buildAppBar(),
+      appBar: const AppBarWithCity(title: 'Unrealvibe'),
       body: Center(
         child: Container(
           constraints: BoxConstraints(maxWidth: maxWidth),
@@ -422,6 +546,90 @@ class _CreateScreenState extends State<CreateScreen> {
             ),
           ),
         ),
+      ),
+    );
+  }
+  
+  Widget _buildRequirementCard({
+    required IconData icon,
+    required String title,
+    required String description,
+    required bool isComplete,
+    required String progress,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1C1C1E),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isComplete 
+              ? const Color(0xFF10B981).withOpacity(0.3)
+              : const Color(0xFF2C2C2E),
+          width: 1.5,
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: isComplete 
+                  ? const Color(0xFF10B981).withOpacity(0.2)
+                  : const Color(0xFF2C2C2E),
+            ),
+            child: Icon(
+              isComplete ? Icons.check_circle : icon,
+              color: isComplete ? const Color(0xFF10B981) : const Color(0xFF6B7280),
+              size: 24,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  description,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: Color(0xFF9CA3AF),
+                    height: 1.3,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: isComplete 
+                  ? const Color(0xFF10B981).withOpacity(0.2)
+                  : const Color(0xFF2C2C2E),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text(
+              progress,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: isComplete ? const Color(0xFF10B981) : const Color(0xFF6B7280),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -693,43 +901,4 @@ class _CreateScreenState extends State<CreateScreen> {
 
 
 
-  PreferredSizeWidget _buildAppBar() {
-    return AppBar(
-      backgroundColor: Colors.black,
-      elevation: 0,
-      automaticallyImplyLeading: false,
-      title: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          const Text(
-            'Unrealvibe',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          Consumer<UserProvider>(
-            builder: (context, userProvider, child) {
-              final userCity = userProvider.user?.city ?? 'Noida';
-              return Row(
-                children: [
-                  const Icon(Icons.location_on, color: Colors.white, size: 16),
-                  const SizedBox(width: 4),
-                  Text(
-                    userCity,
-                    style: TextStyle(
-                      color: Colors.white.withOpacity(0.9),
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              );
-            },
-          ),
-        ],
-      ),
-    );
-  }
 }

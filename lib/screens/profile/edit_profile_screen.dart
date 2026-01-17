@@ -194,9 +194,16 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       setState(() => _isLoading = false);
 
       if (result['success']) {
+        // Override specific backend messages
+        String successMessage = result['message'] ?? 'Profile updated successfully';
+        if (successMessage.toLowerCase().contains('you are now a host') || 
+            successMessage.toLowerCase().contains('host')) {
+          successMessage = 'Profile updated successfully';
+        }
+        
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(result['message'] ?? 'Profile updated successfully'),
+            content: Text(successMessage),
             backgroundColor: const Color(0xFF10B981),
           ),
         );
@@ -375,44 +382,50 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           ),
         ),
         const SizedBox(height: 8),
-        Row(
-          children: [
-            Expanded(child: _buildGenderOption('Male')),
-            const SizedBox(width: 12),
-            Expanded(child: _buildGenderOption('Female')),
-            const SizedBox(width: 12),
-            Expanded(child: _buildGenderOption('Other')),
-          ],
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: const Color(0xFF1A1A1A),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xFF2A2A2A)),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.wc, color: Color(0xFF6B7280)),
+              const SizedBox(width: 12),
+              Text(
+                _selectedGender,
+                style: const TextStyle(
+                  color: Color(0xFF9CA3AF),
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF2A2A2A),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: const Text(
+                  'Cannot be changed',
+                  style: TextStyle(
+                    color: Color(0xFF6B7280),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ],
     );
   }
 
-  Widget _buildGenderOption(String gender) {
-    final isSelected = _selectedGender == gender;
-    return GestureDetector(
-      onTap: () => setState(() => _selectedGender = gender),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFFE94B8B) : const Color(0xFF1A1A1A),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: isSelected ? const Color(0xFFE94B8B) : const Color(0xFF2A2A2A),
-          ),
-        ),
-        child: Center(
-          child: Text(
-            gender,
-            style: TextStyle(
-              color: isSelected ? Colors.white : const Color(0xFF9CA3AF),
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
+
 
   Widget _buildTextArea(String label, TextEditingController controller, IconData icon) {
     return Column(
@@ -528,6 +541,27 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   Widget _buildDocumentUpload(String label, File? file, String type) {
+    final user = Provider.of<UserProvider>(context).user;
+    
+    // Check if document is already uploaded on server
+    bool isUploaded = false;
+    if (user?.documents != null) {
+      switch (type) {
+        case 'aadhaar':
+          isUploaded = user!.documents!.aadhaar != null;
+          break;
+        case 'pan':
+          isUploaded = user!.documents!.pan != null;
+          break;
+        case 'drivingLicense':
+          isUploaded = user!.documents!.drivingLicense != null;
+          break;
+      }
+    }
+    
+    // Show as uploaded if either file is selected or already uploaded on server
+    final hasDocument = file != null || isUploaded;
+    
     return GestureDetector(
       onTap: () => _showImageSourceDialog(type, 'Upload $label'),
       child: Container(
@@ -536,30 +570,46 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           color: const Color(0xFF1A1A1A),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: file != null ? const Color(0xFFE94B8B) : const Color(0xFF2A2A2A),
+            color: hasDocument ? const Color(0xFF10B981) : const Color(0xFF2A2A2A),
           ),
         ),
         child: Row(
           children: [
             Icon(
-              file != null ? Icons.check_circle : Icons.upload_file,
-              color: file != null ? const Color(0xFFE94B8B) : const Color(0xFF6B7280),
+              hasDocument ? Icons.check_circle : Icons.upload_file,
+              color: hasDocument ? const Color(0xFF10B981) : const Color(0xFF6B7280),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: Text(
-                file != null ? '$label uploaded' : 'Upload $label',
+                hasDocument 
+                    ? (file != null ? '$label uploaded (new)' : '$label uploaded')
+                    : 'Upload $label',
                 style: TextStyle(
-                  color: file != null ? Colors.white : const Color(0xFF9CA3AF),
+                  color: hasDocument ? Colors.white : const Color(0xFF9CA3AF),
                   fontWeight: FontWeight.w500,
                 ),
               ),
             ),
-            Icon(
-              Icons.arrow_forward_ios,
-              size: 16,
-              color: const Color(0xFF6B7280),
-            ),
+            if (hasDocument)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF10B981).withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.check,
+                  size: 16,
+                  color: Color(0xFF10B981),
+                ),
+              )
+            else
+              const Icon(
+                Icons.arrow_forward_ios,
+                size: 16,
+                color: Color(0xFF6B7280),
+              ),
           ],
         ),
       ),

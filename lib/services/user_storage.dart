@@ -9,6 +9,7 @@ class UserStorage {
   static const String _userIdKey = 'user_id';
   static const String _isLoggedInKey = 'is_logged_in';
   static const String _requestIdKey = 'request_id';
+  static const String _accessTokenCookieKey = 'access_token_cookie';
 
   // Save user data
   static Future<void> saveUser(User user) async {
@@ -72,6 +73,18 @@ class UserStorage {
   static Future<bool> getLoginStatus() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getBool(_isLoggedInKey) ?? false;
+  }
+
+  // Save access token cookie
+  static Future<void> saveAccessTokenCookie(String cookie) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_accessTokenCookieKey, cookie);
+  }
+
+  // Get access token cookie
+  static Future<String?> getAccessTokenCookie() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_accessTokenCookieKey);
   }
 
   // Clear all data (logout)

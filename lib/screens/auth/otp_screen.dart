@@ -174,12 +174,34 @@ class _OtpScreenState extends State<OtpScreen> {
                           ),
                         ),
                         const SizedBox(height: 8),
-                        Text(
-                          '4-digit code was sent to $maskedNumber',
-                          style: TextStyle(
-                            color: Colors.white.withOpacity(0.7),
-                            fontSize: ResponsiveHelper.getResponsiveFontSize(context, 13),
-                          ),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                '4-digit code was sent to $maskedNumber',
+                                style: TextStyle(
+                                  color: Colors.white.withOpacity(0.7),
+                                  fontSize: ResponsiveHelper.getResponsiveFontSize(context, 13),
+                                ),
+                              ),
+                            ),
+                            TextButton(
+                              onPressed: () => Navigator.pop(context),
+                              style: TextButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                minimumSize: Size.zero,
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              ),
+                              child: Text(
+                                'Edit',
+                                style: TextStyle(
+                                  color: const Color(0xFFE91E63),
+                                  fontSize: ResponsiveHelper.getResponsiveFontSize(context, 13),
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       const SizedBox(height: 30),
 
@@ -417,6 +439,9 @@ class _OtpScreenState extends State<OtpScreen> {
             ),
           );
         } else {
+          // Add a small delay to ensure token is properly saved before navigation
+          await Future.delayed(const Duration(milliseconds: 500));
+          
           // Profile incomplete or missing required fields, go to create account
           Navigator.pushReplacement(
             context,

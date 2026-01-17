@@ -43,10 +43,7 @@ class ReviewService {
       
       final response = await http.post(
         Uri.parse(url),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
+        headers: await ApiConfig.getAuthHeadersWithCookies(token),
         body: json.encode(requestBody),
       ).timeout(const Duration(seconds: 10));
 

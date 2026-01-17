@@ -22,19 +22,34 @@ class _UploadDocumentsScreenState extends State<UploadDocumentsScreen> {
   File? document2;
   File? profilePicture;
   
+  // Text controllers for new fields
+  final TextEditingController _bioController = TextEditingController();
+  final TextEditingController _funFactController = TextEditingController();
+  final TextEditingController _interestsController = TextEditingController();
+  
   // Track current step
-  int currentStep = 1; // 1 = first doc, 2 = second doc, 3 = profile pic
+  int currentStep = 1; // 1 = first doc, 2 = second doc, 3 = profile pic, 4 = additional info
+  
+  @override
+  void dispose() {
+    _bioController.dispose();
+    _funFactController.dispose();
+    _interestsController.dispose();
+    super.dispose();
+  }
   
   String get stepTitle {
     if (currentStep == 1) return 'Upload First Document';
     if (currentStep == 2) return 'Upload Second Document';
-    return 'Upload Profile Picture';
+    if (currentStep == 3) return 'Upload Profile Picture';
+    return 'Tell Us About Yourself';
   }
   
   String get stepDescription {
     if (currentStep == 1) return 'Take or select a photo of your first identity document';
     if (currentStep == 2) return 'Take or select a photo of your second identity document';
-    return 'Take or select a profile picture of yourself';
+    if (currentStep == 3) return 'Take or select a profile picture of yourself';
+    return 'Share your bio, fun facts, and interests (optional)';
   }
 
   Future<void> _pickImage(ImageSource source) async {
@@ -154,6 +169,10 @@ class _UploadDocumentsScreenState extends State<UploadDocumentsScreen> {
         currentStep = 3;
       });
     } else if (currentStep == 3 && profilePicture != null) {
+      setState(() {
+        currentStep = 4;
+      });
+    } else if (currentStep == 4) {
       _completeProfile();
     }
   }
@@ -180,12 +199,25 @@ class _UploadDocumentsScreenState extends State<UploadDocumentsScreen> {
         throw Exception('User data not found');
       }
 
+      // Parse interests from comma-separated string
+      List<String>? interestsList;
+      if (_interestsController.text.trim().isNotEmpty) {
+        interestsList = _interestsController.text
+            .split(',')
+            .map((interest) => interest.trim())
+            .where((interest) => interest.isNotEmpty)
+            .toList();
+      }
+
       // Call complete profile API
       final result = await userProvider.completeProfile(
         name: user.name ?? '',
         email: user.email ?? '',
         city: user.city ?? '',
         gender: user.gender ?? '',
+        bio: _bioController.text.trim().isNotEmpty ? _bioController.text.trim() : null,
+        funFact: _funFactController.text.trim().isNotEmpty ? _funFactController.text.trim() : null,
+        interests: interestsList,
         aadhaar: document1,
         drivingLicense: document2,
         pan: document2, // Using document2 as pan for now
@@ -425,11 +457,13 @@ class _UploadDocumentsScreenState extends State<UploadDocumentsScreen> {
                         ),
                         const SizedBox(height: 32),
                         
-                        // Image preview or upload button
+                        // Image preview or upload button OR additional info form
                         Center(
-                          child: currentImage == null
-                              ? _buildUploadButton()
-                              : _buildImagePreview(),
+                          child: currentStep == 4
+                              ? _buildAdditionalInfoForm()
+                              : (currentImage == null
+                                  ? _buildUploadButton()
+                                  : _buildImagePreview()),
                         ),
                         const SizedBox(height: 24),
                       ],
@@ -458,6 +492,8 @@ class _UploadDocumentsScreenState extends State<UploadDocumentsScreen> {
         _buildProgressDot(2, 'Doc 2'),
         _buildProgressLine(currentStep > 2),
         _buildProgressDot(3, 'Photo'),
+        _buildProgressLine(currentStep > 3),
+        _buildProgressDot(4, 'Info'),
       ],
     );
   }
@@ -620,8 +656,164 @@ class _UploadDocumentsScreenState extends State<UploadDocumentsScreen> {
     );
   }
 
+  Widget _buildAdditionalInfoForm() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1A1A1A),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFF2A2A2A)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Bio / About Me
+          Text(
+            'Bio / About Me',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: ResponsiveHelper.getResponsiveFontSize(context, 16),
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 8),
+          TextFormField(
+            controller: _bioController,
+            maxLines: 3,
+            style: const TextStyle(color: Colors.white),
+            decoration: InputDecoration(
+              prefixIcon: const Icon(Icons.person_outline, color: Color(0xFF6B7280)),
+              filled: true,
+              fillColor: const Color(0xFF0A0A0A),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: Color(0xFF2A2A2A)),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: Color(0xFF2A2A2A)),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: Color(0xFFE94B8B)),
+              ),
+              hintText: 'Tell us about yourself...',
+              hintStyle: const TextStyle(color: Color(0xFF6B7280)),
+            ),
+          ),
+          const SizedBox(height: 20),
+          
+          // Fun Fact About Me
+          Text(
+            'Fun Fact About Me',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: ResponsiveHelper.getResponsiveFontSize(context, 16),
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 8),
+          TextFormField(
+            controller: _funFactController,
+            maxLines: 3,
+            style: const TextStyle(color: Colors.white),
+            decoration: InputDecoration(
+              prefixIcon: const Icon(Icons.emoji_emotions, color: Color(0xFF6B7280)),
+              filled: true,
+              fillColor: const Color(0xFF0A0A0A),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: Color(0xFF2A2A2A)),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: Color(0xFF2A2A2A)),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: Color(0xFFE94B8B)),
+              ),
+              hintText: 'Share something fun about yourself...',
+              hintStyle: const TextStyle(color: Color(0xFF6B7280)),
+            ),
+          ),
+          const SizedBox(height: 20),
+          
+          // My Vibe / Interests
+          Text(
+            'My Vibe / Interests',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: ResponsiveHelper.getResponsiveFontSize(context, 16),
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 8),
+          TextFormField(
+            controller: _interestsController,
+            maxLines: 3,
+            style: const TextStyle(color: Colors.white),
+            decoration: InputDecoration(
+              prefixIcon: const Icon(Icons.interests, color: Color(0xFF6B7280)),
+              filled: true,
+              fillColor: const Color(0xFF0A0A0A),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: Color(0xFF2A2A2A)),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: Color(0xFF2A2A2A)),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: Color(0xFFE94B8B)),
+              ),
+              hintText: 'Music, Travel, Photography, Dancing...',
+              hintStyle: const TextStyle(color: Color(0xFF6B7280)),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Tip: Separate multiple interests with commas',
+            style: TextStyle(
+              color: const Color(0xFF6B7280),
+              fontSize: ResponsiveHelper.getResponsiveFontSize(context, 12),
+              fontStyle: FontStyle.italic,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFF2A2A2A).withOpacity(0.5),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.info_outline, color: Color(0xFF6B7280), size: 20),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'These fields are optional but help others know you better!',
+                    style: TextStyle(
+                      color: const Color(0xFF9CA3AF),
+                      fontSize: ResponsiveHelper.getResponsiveFontSize(context, 12),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildActionButtons() {
     final hasImage = currentImage != null;
+    final canProceed = currentStep == 4 || hasImage; // Step 4 doesn't require image, fields are optional
     
     return Row(
       children: [
@@ -656,26 +848,26 @@ class _UploadDocumentsScreenState extends State<UploadDocumentsScreen> {
           child: Container(
             height: 56,
             decoration: BoxDecoration(
-              gradient: hasImage
+              gradient: canProceed
                   ? const LinearGradient(
                       colors: [Color(0xFFFF4081), Color(0xFFE91E63)],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     )
                   : null,
-              color: hasImage ? null : const Color(0xFF2A2A2A),
+              color: canProceed ? null : const Color(0xFF2A2A2A),
               borderRadius: BorderRadius.circular(28.0),
             ),
             child: Material(
               color: Colors.transparent,
               child: InkWell(
                 borderRadius: BorderRadius.circular(28.0),
-                onTap: hasImage ? _nextStep : null,
+                onTap: canProceed ? _nextStep : null,
                 child: Center(
                   child: Text(
-                    currentStep == 3 ? 'Complete' : 'Next',
+                    currentStep == 4 ? 'Complete' : 'Next',
                     style: TextStyle(
-                      color: hasImage ? Colors.white : const Color(0xFF6B7280),
+                      color: canProceed ? Colors.white : const Color(0xFF6B7280),
                       fontSize: ResponsiveHelper.getResponsiveFontSize(context, 18),
                       fontWeight: FontWeight.w600,
                     ),

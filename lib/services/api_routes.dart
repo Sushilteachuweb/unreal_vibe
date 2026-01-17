@@ -1,3 +1,5 @@
+import 'user_storage.dart';
+
 class ApiConfig {
   // Base URL
   static const String baseUrl = "https://api.unrealvibe.com/api";
@@ -42,6 +44,7 @@ class ApiConfig {
   
   // Host endpoints
   static const String hostRequest = "$baseUrl/host/requestinput";
+  static const String requestHostMode = "$baseUrl/user/request-host"; // New Host Mode request endpoint
   
   // Alternative host endpoints to try if the main one fails
   static const String hostRequestAlt1 = "$baseUrl/host/request";
@@ -59,4 +62,20 @@ class ApiConfig {
     'Accept': 'application/json',
     'Authorization': 'Bearer $token',
   };
+
+  // Get auth headers with cookies - using SAME token for both Bearer and Cookie
+  static Future<Map<String, String>> getAuthHeadersWithCookies(String token) async {
+    final headers = {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      'Authorization': 'Bearer $token',
+      'Cookie': 'accessToken=$token', // Use SAME token for cookie
+    };
+    
+    print("🔐 Bearer token: ${token.substring(0, 30)}...");
+    print("🍪 Cookie token: ${token.substring(0, 30)}...");
+    print("📋 Final headers: ${headers.keys.join(', ')}");
+    
+    return headers;
+  }
 }

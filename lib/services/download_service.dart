@@ -45,14 +45,19 @@ class DownloadService {
         _showDownloadDialog(context, eventName);
       }
 
-      // Download file using http instead of dio for better reliability
+      // Download file using dio with proper authentication (Bearer + Cookie)
+      final authHeaders = await ApiConfig.getAuthHeadersWithCookies(token);
+      final headers = {
+        ...authHeaders,
+        'Accept': 'application/pdf',
+      };
+      
+      print('🔐 Download headers: ${headers.keys.join(', ')}');
+      
       final response = await _dio.get(
         endpoint,
         options: Options(
-          headers: {
-            'Authorization': 'Bearer $token',
-            'Accept': 'application/pdf',
-          },
+          headers: headers,
           responseType: ResponseType.bytes,
         ),
         onReceiveProgress: (received, total) {

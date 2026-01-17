@@ -95,7 +95,7 @@ class VerificationCard extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               const Text(
-                'For becoming host complete profile by uploading document',
+                'Complete your profile verification',
                 style: TextStyle(
                   color: Color(0xFF9CA3AF),
                   fontSize: 14,

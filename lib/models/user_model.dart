@@ -46,10 +46,20 @@ class UserDocuments {
   }
 
   factory UserDocuments.fromJson(Map<String, dynamic> json) {
+    // Helper function to extract URL from either string or object format
+    String? extractUrl(dynamic value) {
+      if (value == null) return null;
+      if (value is String) return value;
+      if (value is Map<String, dynamic>) {
+        return value['url'] as String?;
+      }
+      return null;
+    }
+
     return UserDocuments(
-      aadhaar: json['aadhaar'],
-      pan: json['pan'],
-      drivingLicense: json['drivingLicense'],
+      aadhaar: extractUrl(json['aadhaar']),
+      pan: extractUrl(json['pan']),
+      drivingLicense: extractUrl(json['drivingLicense']),
     );
   }
 }

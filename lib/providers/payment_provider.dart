@@ -1,16 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import '../services/razorpay_service.dart';
+import '../services/phonepe_service.dart';
+import '../services/user_storage.dart';
+import '../services/api_routes.dart';
 
 class PaymentProvider extends ChangeNotifier {
   bool _isLoading = false;
   String? _errorMessage;
-  PaymentResult? _lastPaymentResult;
+  PhonePePaymentResult? _lastPaymentResult;
 
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
-  PaymentResult? get lastPaymentResult => _lastPaymentResult;
+  PhonePePaymentResult? get lastPaymentResult => _lastPaymentResult;
 
   // Your backend API base URL
   static const String _baseUrl = 'http://api.unrealvibe.com'; // Replace with your actual API URL
@@ -30,7 +32,7 @@ class PaymentProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Create Razorpay order on your backend
+  // Create PhonePe order on your backend
   Future<Map<String, dynamic>?> createOrder({
     required double amount,
     required String currency,
@@ -40,15 +42,20 @@ class PaymentProvider extends ChangeNotifier {
       setLoading(true);
       clearError();
 
+      // Get authentication headers
+      final token = await UserStorage.getToken();
+      final headers = token != null 
+          ? await ApiConfig.getAuthHeadersWithCookies(token)
+          : ApiConfig.headers;
+
       final response = await http.post(
         Uri.parse('$_baseUrl/api/payment/create-order'),
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: headers,
         body: json.encode({
           'amount': (amount * 100).toInt(), // Convert to paise
           'currency': currency,
           'notes': notes,
+          'payment_gateway': 'phonepe', // Specify PhonePe as payment gateway
         }),
       );
 
@@ -72,21 +79,28 @@ class PaymentProvider extends ChangeNotifier {
     required String paymentId,
     required String orderId,
     required String signature,
+    String? transactionId,
     required Map<String, dynamic> bookingDetails,
   }) async {
     try {
       setLoading(true);
       clearError();
 
+      // Get authentication headers
+      final token = await UserStorage.getToken();
+      final headers = token != null 
+          ? await ApiConfig.getAuthHeadersWithCookies(token)
+          : ApiConfig.headers;
+
       final response = await http.post(
         Uri.parse('$_baseUrl/api/payment/verify'),
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: headers,
         body: json.encode({
-          'payment_id': paymentId,
-          'order_id': orderId,
-          'signature': signature,
+          'phonepe_payment_id': paymentId,
+          'phonepe_order_id': orderId,
+          'phonepe_signature': signature,
+          if (transactionId != null) 'phonepe_transaction_id': transactionId,
+          'payment_gateway': 'phonepe',
           'booking_details': bookingDetails,
         }),
       );
@@ -108,7 +122,7 @@ class PaymentProvider extends ChangeNotifier {
 
   // Complete booking process
   Future<bool> processPayment({
-    required PaymentRequest paymentRequest,
+    required PhonePePaymentRequest paymentRequest,
     required String userToken, // If you have user authentication
   }) async {
     try {
@@ -131,37 +145,39 @@ class PaymentProvider extends ChangeNotifier {
         return false;
       }
 
-      // Step 2: Open Razorpay checkout
-      final razorpayService = RazorpayService();
+      // Step 2: Open PhonePe checkout
+      final phonePeService = PhonePeService();
       
-      // Initialize Razorpay with callbacks
-      razorpayService.initialize(
+      // Initialize PhonePe with callbacks
+      phonePeService.initialize(
         onPaymentSuccess: (response) async {
           // Step 3: Verify payment on backend
           final isVerified = await verifyPayment(
-            paymentId: response.paymentId!,
-            orderId: response.orderId!,
-            signature: response.signature!,
+            paymentId: response.paymentId,
+            orderId: response.orderId,
+            signature: response.signature,
+            transactionId: response.transactionId,
             bookingDetails: paymentRequest.toJson(),
           );
 
           if (isVerified) {
-            _lastPaymentResult = PaymentResult.success(
-              paymentId: response.paymentId!,
-              orderId: response.orderId!,
-              signature: response.signature!,
+            _lastPaymentResult = PhonePePaymentResult.success(
+              paymentId: response.paymentId,
+              orderId: response.orderId,
+              transactionId: response.transactionId,
+              signature: response.signature,
             );
           } else {
-            _lastPaymentResult = PaymentResult.failure(
+            _lastPaymentResult = PhonePePaymentResult.failure(
               errorMessage: 'Payment verification failed',
             );
           }
           notifyListeners();
         },
         onPaymentError: (response) {
-          _lastPaymentResult = PaymentResult.failure(
-            errorMessage: response.message ?? 'Payment failed',
-            errorCode: response.code.toString(),
+          _lastPaymentResult = PhonePePaymentResult.failure(
+            errorMessage: response.message,
+            errorCode: response.code,
           );
           notifyListeners();
         },
@@ -170,8 +186,8 @@ class PaymentProvider extends ChangeNotifier {
         },
       );
 
-      // Open Razorpay checkout
-      razorpayService.openCheckout(
+      // Open PhonePe checkout
+      await phonePeService.openCheckout(
         orderId: orderData['id'],
         amount: paymentRequest.amount,
         name: paymentRequest.userDetails['name'] ?? 'User',
@@ -198,11 +214,15 @@ class PaymentProvider extends ChangeNotifier {
       setLoading(true);
       clearError();
 
+      // Get authentication headers
+      final token = await UserStorage.getToken();
+      final headers = token != null 
+          ? await ApiConfig.getAuthHeadersWithCookies(token)
+          : ApiConfig.headers;
+
       final response = await http.get(
         Uri.parse('$_baseUrl/api/payment/history/$userId'),
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: headers,
       );
 
       if (response.statusCode == 200) {

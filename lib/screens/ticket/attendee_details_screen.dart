@@ -4,7 +4,7 @@ import '../../models/event_model.dart';
 import '../../models/ticket_model.dart';
 import '../../models/attendee_model.dart';
 import '../../services/ticket_service.dart';
-import '../../services/dummy_razorpay_service.dart';
+import '../../services/phonepe_dummy_service.dart';
 import '../../services/user_storage.dart';
 import '../../services/auth_service.dart';
 import '../../services/test_auth_helper.dart';
@@ -35,17 +35,17 @@ class _AttendeeDetailsScreenState extends State<AttendeeDetailsScreen> {
   int _currentPage = 0;
   bool _isCreatingOrder = false;
   String? _createdOrderId;
-  final DummyRazorpayService _razorpayService = DummyRazorpayService();
+  final DummyPhonePeService _phonePeService = DummyPhonePeService();
 
   @override
   void initState() {
     super.initState();
     _initializeAttendees();
-    _initializeRazorpay();
+    _initializePhonePe();
   }
 
-  void _initializeRazorpay() {
-    _razorpayService.initialize(
+  void _initializePhonePe() {
+    _phonePeService.initialize(
       onPaymentSuccess: _handlePaymentSuccess,
       onPaymentError: _handlePaymentError,
     );
@@ -356,15 +356,13 @@ class _AttendeeDetailsScreenState extends State<AttendeeDetailsScreen> {
         
         // Handle authentication errors
         if (e.toString().contains('AUTHENTICATION_REQUIRED')) {
-          errorMessage = 'Please login to continue booking';
           _showAuthenticationDialog();
           return;
         }
         
         // Handle permission errors
         if (e.toString().contains('PERMISSION_DENIED')) {
-          errorMessage = 'Your account does not have permission to create orders. Please contact support or try logging in again.';
-          _showAuthenticationDialog();
+          _showPermissionErrorDialog();
           return;
         }
         
@@ -447,8 +445,8 @@ class _AttendeeDetailsScreenState extends State<AttendeeDetailsScreen> {
     // Get first attendee details for payment
     final firstAttendee = _attendees.first;
     
-    // Open Razorpay checkout
-    _razorpayService.openCheckout(
+    // Open PhonePe checkout
+    _phonePeService.openCheckout(
       context: context,
       amount: _totalPrice,
       name: firstAttendee.fullName,
@@ -458,7 +456,7 @@ class _AttendeeDetailsScreenState extends State<AttendeeDetailsScreen> {
     );
   }
 
-  void _handlePaymentSuccess(DummyPaymentSuccessResponse response) async {
+  void _handlePaymentSuccess(DummyPhonePePaymentSuccessResponse response) async {
     if (_createdOrderId == null) {
       _showErrorMessage('Order ID not found');
       return;
@@ -482,8 +480,10 @@ class _AttendeeDetailsScreenState extends State<AttendeeDetailsScreen> {
       final verificationResponse = await TicketService.verifyPayment(
         eventId: widget.event.id,
         orderId: _createdOrderId!,
-        razorpayPaymentId: response.paymentId,
-        razorpaySignature: response.signature,
+        paymentId: response.paymentId,
+        signature: response.signature,
+        transactionId: response.transactionId,
+        paymentMethod: 'phonepe',
         selectedTickets: selectedTickets,
         attendees: attendeesData,
       );
@@ -504,7 +504,7 @@ class _AttendeeDetailsScreenState extends State<AttendeeDetailsScreen> {
     }
   }
 
-  void _handlePaymentError(DummyPaymentFailureResponse response) {
+  void _handlePaymentError(DummyPhonePePaymentFailureResponse response) {
     _showErrorMessage('Payment failed: ${response.message}');
   }
 
@@ -548,13 +548,57 @@ class _AttendeeDetailsScreenState extends State<AttendeeDetailsScreen> {
       barrierDismissible: false,
       builder: (context) => AlertDialog(
         backgroundColor: const Color(0xFF1A1A1A),
-        title: const Text(
-          'Authentication Required',
-          style: TextStyle(color: Colors.white),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
         ),
-        content: const Text(
-          'You need to login to book tickets. Please login and try again.',
-          style: TextStyle(color: Color(0xFF9CA3AF)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFF6958CA).withOpacity(0.2),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(
+                Icons.lock_outline,
+                color: Color(0xFF6958CA),
+                size: 24,
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Text(
+                'Login Required',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: const Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'To complete your booking, please log in to your account.',
+              style: TextStyle(
+                color: Color(0xFF9CA3AF),
+                fontSize: 16,
+                height: 1.5,
+              ),
+            ),
+            SizedBox(height: 12),
+            Text(
+              'Your ticket selections will be saved.',
+              style: TextStyle(
+                color: Color(0xFF6B7280),
+                fontSize: 14,
+              ),
+            ),
+          ],
         ),
         actions: [
           TextButton(
@@ -566,27 +610,16 @@ class _AttendeeDetailsScreenState extends State<AttendeeDetailsScreen> {
                 arguments: 0, // Home tab index
               );
             },
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            ),
             child: const Text(
-              'Go to Home',
-              style: TextStyle(color: Color(0xFF6958CA)),
+              'Cancel',
+              style: TextStyle(
+                color: Color(0xFF9CA3AF),
+                fontSize: 16,
+              ),
             ),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.of(context).pop();
-              // For testing - simulate login
-              await TestAuthHelper.simulateLogin();
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Test login successful! You can now book tickets.'),
-                  backgroundColor: Colors.green,
-                ),
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF10B981),
-            ),
-            child: const Text('Test Login'),
           ),
           ElevatedButton(
             onPressed: () {
@@ -595,8 +628,145 @@ class _AttendeeDetailsScreenState extends State<AttendeeDetailsScreen> {
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF6958CA),
+              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
-            child: const Text('Real Login'),
+            child: const Text(
+              'Login',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showPermissionErrorDialog() {
+    if (!mounted) return;
+    
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF1A1A1A),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.orange.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(
+                Icons.warning_amber_rounded,
+                color: Colors.orange,
+                size: 24,
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Text(
+                'Access Issue',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: const Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'We\'re having trouble processing your booking.',
+              style: TextStyle(
+                color: Color(0xFF9CA3AF),
+                fontSize: 16,
+                height: 1.5,
+              ),
+            ),
+            SizedBox(height: 12),
+            Text(
+              'This could be due to:',
+              style: TextStyle(
+                color: Color(0xFF9CA3AF),
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            SizedBox(height: 8),
+            Text(
+              '• Your session has expired\n• Account verification is pending\n• A temporary system issue',
+              style: TextStyle(
+                color: Color(0xFF6B7280),
+                fontSize: 14,
+                height: 1.6,
+              ),
+            ),
+            SizedBox(height: 12),
+            Text(
+              'Please try logging in again. If the issue persists, contact our support team.',
+              style: TextStyle(
+                color: Color(0xFF9CA3AF),
+                fontSize: 14,
+                height: 1.5,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              Navigator.of(context).pushNamedAndRemoveUntil(
+                '/main',
+                (route) => false,
+                arguments: 0,
+              );
+            },
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            ),
+            child: const Text(
+              'Go Home',
+              style: TextStyle(
+                color: Color(0xFF9CA3AF),
+                fontSize: 16,
+              ),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              _navigateToLogin();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF6958CA),
+              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: const Text(
+              'Try Login Again',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
         ],
       ),
@@ -610,13 +780,99 @@ class _AttendeeDetailsScreenState extends State<AttendeeDetailsScreen> {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: const Color(0xFF1A1A1A),
-        title: const Text(
-          'Login Required',
-          style: TextStyle(color: Colors.white),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
         ),
-        content: const Text(
-          'Please use the phone number authentication in the app to login before booking tickets.',
-          style: TextStyle(color: Color(0xFF9CA3AF)),
+        title: const Text(
+          'How to Login',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        content: const Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'To complete your booking:',
+              style: TextStyle(
+                color: Color(0xFF9CA3AF),
+                fontSize: 16,
+                height: 1.5,
+              ),
+            ),
+            SizedBox(height: 16),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '1. ',
+                  style: TextStyle(
+                    color: Color(0xFF6958CA),
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Expanded(
+                  child: Text(
+                    'Go to your Profile tab',
+                    style: TextStyle(
+                      color: Color(0xFF9CA3AF),
+                      fontSize: 16,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: 8),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '2. ',
+                  style: TextStyle(
+                    color: Color(0xFF6958CA),
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Expanded(
+                  child: Text(
+                    'Login with your phone number',
+                    style: TextStyle(
+                      color: Color(0xFF9CA3AF),
+                      fontSize: 16,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: 8),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '3. ',
+                  style: TextStyle(
+                    color: Color(0xFF6958CA),
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Expanded(
+                  child: Text(
+                    'Return here to complete booking',
+                    style: TextStyle(
+                      color: Color(0xFF9CA3AF),
+                      fontSize: 16,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
         actions: [
           ElevatedButton(

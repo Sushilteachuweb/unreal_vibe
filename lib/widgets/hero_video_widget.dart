@@ -81,9 +81,9 @@ class _HeroVideoWidgetState extends State<HeroVideoWidget> with WidgetsBindingOb
       _controller = VideoPlayerController.asset(
         widget.videoPath,
         videoPlayerOptions: VideoPlayerOptions(
-          mixWithOthers: false,
+          mixWithOthers: true, // Allow mixing with other audio sources
           allowBackgroundPlayback: false,
-          webOptions: VideoPlayerWebOptions(
+          webOptions: const VideoPlayerWebOptions(
             controls: VideoPlayerWebOptionsControls.disabled(),
           ),
         ),
@@ -100,19 +100,24 @@ class _HeroVideoWidgetState extends State<HeroVideoWidget> with WidgetsBindingOb
       // Initialize with timeout and better error handling for APK builds
       try {
         await _controller!.initialize().timeout(
-          const Duration(seconds: 30), // Further increased timeout
+          const Duration(seconds: 10), // Reduced timeout for faster fallback
           onTimeout: () {
-            throw TimeoutException('Video initialization timeout', const Duration(seconds: 30));
+            throw TimeoutException('Video initialization timeout', const Duration(seconds: 10));
           },
         );
       } catch (initError) {
-        debugPrint('🎥 ❌ First initialization attempt failed: $initError');
+        // Only log non-timeout errors to reduce noise
+        if (!initError.toString().contains('timeout')) {
+          debugPrint('🎥 ❌ Video initialization failed: $initError');
+        } else {
+          debugPrint('🎥 ⏱️ Video initialization timed out, trying fallback...');
+        }
         
         // For APK builds, try a simpler initialization approach
         if (initError.toString().contains('timeout') || 
             initError.toString().contains('codec') ||
             initError.toString().contains('hardware')) {
-          debugPrint('🎥 🔄 Trying fallback initialization for APK compatibility...');
+          debugPrint('🎥 🔄 Using APK-compatible initialization...');
           
           // Dispose current controller and create a new one with minimal options
           await _controller!.dispose();
@@ -127,9 +132,9 @@ class _HeroVideoWidgetState extends State<HeroVideoWidget> with WidgetsBindingOb
           
           // Try initialization again with shorter timeout
           await _controller!.initialize().timeout(
-            const Duration(seconds: 15),
+            const Duration(seconds: 8),
             onTimeout: () {
-              throw TimeoutException('Fallback initialization timeout', const Duration(seconds: 15));
+              throw TimeoutException('Fallback initialization timeout', const Duration(seconds: 8));
             },
           );
         } else {
@@ -161,9 +166,9 @@ class _HeroVideoWidgetState extends State<HeroVideoWidget> with WidgetsBindingOb
           await _controller!.setLooping(true);
           debugPrint('🎥 ✅ Looping enabled');
           
-          // Mute video since no audio
+          // Mute video completely to prevent audio timestamp issues
           await _controller!.setVolume(0.0);
-          debugPrint('🎥 ✅ Volume muted');
+          debugPrint('🎥 ✅ Volume muted to prevent audio timestamp warnings');
           
           // Set playback speed with error handling for APK builds
           try {

@@ -10,12 +10,11 @@ import '../../utils/responsive_helper.dart';
 import '../../utils/error_handler.dart';
 import '../../providers/user_provider.dart';
 import '../../providers/event_provider.dart';
-import '../../utils/api_debug.dart';
-import '../../services/event_service.dart';
 import '../../services/search_service.dart';
 import '../../widgets/skeleton_loading.dart';
 import '../../widgets/hero_video_widget.dart';
 import '../../widgets/filter_bottom_sheet.dart';
+import '../../widgets/app_bar_with_city.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -35,9 +34,16 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    // Only fetch events if needed (no cache or cache expired)
+    // Initialize EventProvider with user's city and fetch events if needed
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final eventProvider = context.read<EventProvider>();
+      final userProvider = context.read<UserProvider>();
+      
+      // Initialize city from user profile if available
+      if (userProvider.user?.city != null) {
+        eventProvider.initializeCityFromProfile(userProvider.user!.city);
+      }
+      
       eventProvider.fetchEventsIfNeeded();
       eventProvider.fetchTrendingEventsIfNeeded();
     });
@@ -242,6 +248,8 @@ class _HomeScreenState extends State<HomeScreen> {
     return Consumer<EventProvider>(
       builder: (context, eventProvider, child) {
         final trendingEvents = eventProvider.trendingEvents;
+        print('🏠 [HomeScreen] Consumer rebuild - ${trendingEvents.length} trending events, selectedCity: ${eventProvider.selectedCity}');
+        
         final padding = ResponsiveHelper.getResponsivePadding(context, 16.0);
 
         return _buildHomeContent(context, eventProvider, trendingEvents, padding);
@@ -253,7 +261,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Scaffold(
       backgroundColor: Colors.black,
-      appBar: _buildAppBar(),
+      appBar: const AppBarWithCity(title: 'Unrealvibe'),
       body: eventProvider.isLoading && !eventProvider.hasData
           ? _buildSkeletonLoading(context, padding)
           : eventProvider.error != null && !eventProvider.hasData
@@ -326,46 +334,6 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                 ),
-    );
-  }
-
-  PreferredSizeWidget _buildAppBar() {
-    return AppBar(
-      backgroundColor: Colors.black,
-      elevation: 0,
-      automaticallyImplyLeading: false,
-      title: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          const Text(
-            'Unrealvibe',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          Consumer<UserProvider>(
-            builder: (context, userProvider, child) {
-              final userCity = userProvider.user?.city ?? 'Noida';
-              return Row(
-                children: [
-                  const Icon(Icons.location_on, color: Colors.white, size: 16),
-                  const SizedBox(width: 4),
-                  Text(
-                    userCity,
-                    style: TextStyle(
-                      color: Colors.white.withOpacity(0.9),
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              );
-            },
-          ),
-        ],
-      ),
     );
   }
 
@@ -601,6 +569,8 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildTrendingEvents(List<Event> events, BuildContext context) {
+    print('🎨 [HomeScreen] _buildTrendingEvents called with ${events.length} events');
+    
     final padding = ResponsiveHelper.getResponsivePadding(context, 16.0);
     final isDesktop = ResponsiveHelper.isDesktop(context);
     final screenWidth = MediaQuery.of(context).size.width;

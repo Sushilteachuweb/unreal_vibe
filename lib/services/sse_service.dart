@@ -74,6 +74,12 @@ class SSEService {
       _request!.headers.set('Cache-Control', 'no-cache');
       _request!.headers.set('Authorization', 'Bearer $token');
       
+      // Add cookie if available
+      final accessTokenCookie = await UserStorage.getAccessTokenCookie();
+      if (accessTokenCookie != null) {
+        _request!.headers.set('Cookie', 'accessToken=$accessTokenCookie');
+      }
+      
       final response = await _request!.close();
       
       if (response.statusCode == 200) {

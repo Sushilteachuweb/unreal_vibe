@@ -37,12 +37,15 @@ class DownloadServiceV2 {
         _showDownloadDialog(context, eventName);
       }
 
+      // Get authentication headers with cookies
+      final authHeaders = await ApiConfig.getAuthHeadersWithCookies(token);
+      
       // Download file data
       final response = await _dio.get(
         endpoint,
         options: Options(
           headers: {
-            'Authorization': 'Bearer $token',
+            ...authHeaders,
             'Accept': 'application/pdf',
           },
           responseType: ResponseType.bytes,

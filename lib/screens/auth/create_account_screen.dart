@@ -499,14 +499,57 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
           ),
         );
 
-        // Navigate to main screen
+        // Navigate to main app
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => const MainNavigation()),
+          MaterialPageRoute(
+            builder: (context) => const MainNavigation(),
+          ),
         );
       } else {
-        // Show error message
-        _showError(result['message'] ?? 'Failed to create profile');
+        // Check if re-authentication is required
+        if (result['requiresReauth'] == true) {
+          // Show error and navigate back to login
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(result['message'] ?? 'Session expired. Please login again.'),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+          
+          // Navigate back to number screen after a delay
+          Future.delayed(const Duration(seconds: 2), () {
+            if (mounted) {
+              Navigator.pushNamedAndRemoveUntil(
+                context,
+                '/number',
+                (route) => false,
+              );
+            }
+          });
+        } else {
+          // Show regular error message with more details
+          final errorMessage = result['message'] ?? 'Failed to create profile';
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(errorMessage),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'This appears to be a server issue. Please try again or contact support.',
+                    style: TextStyle(fontSize: 12, color: Colors.white70),
+                  ),
+                ],
+              ),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 5),
+            ),
+          );
+        }
       }
     } catch (e) {
       debugPrint('❌ Error creating account: $e');
@@ -536,5 +579,4 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
     _emailController.dispose();
     _cityController.dispose();
     super.dispose();
-  }
-}
+  }}

@@ -32,14 +32,6 @@ class TicketsScreen extends StatelessWidget {
             fontWeight: FontWeight.w600,
           ),
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.share, color: Colors.white),
-            onPressed: () {
-              // TODO: Implement share functionality
-            },
-          ),
-        ],
       ),
       body: Column(
         children: [

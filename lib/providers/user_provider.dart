@@ -3,6 +3,7 @@ import '../models/user_model.dart';
 import '../services/user_storage.dart';
 import '../services/auth_service.dart';
 import '../services/profile_service.dart';
+import '../services/host_service.dart';
 import '../services/app_initialization_service.dart';
 
 class UserProvider extends ChangeNotifier {
@@ -199,6 +200,30 @@ class UserProvider extends ChangeNotifier {
   // Refresh profile data (force refresh)
   Future<void> refreshProfile() async {
     await fetchProfile(forceRefresh: true);
+  }
+
+  // Request Host Mode - New simplified flow
+  Future<Map<String, dynamic>> requestHostMode() async {
+    try {
+      final result = await HostService.requestHostMode();
+      
+      if (result['success']) {
+        // Update user state to reflect pending request
+        if (_user != null) {
+          _user = _user!.copyWith(isHostRequestPending: true);
+          await UserStorage.saveUser(_user!);
+          notifyListeners();
+        }
+      }
+      
+      return result;
+    } catch (e) {
+      debugPrint('Error requesting host mode: $e');
+      return {
+        'success': false,
+        'message': 'Something went wrong. Please try again.',
+      };
+    }
   }
 
   // Save user data and log in

@@ -1,272 +1,107 @@
 import 'package:flutter/material.dart';
 
 class ErrorHandler {
-  /// Convert technical errors to user-friendly messages
   static String getUserFriendlyMessage(dynamic error) {
-    final errorString = error.toString().toLowerCase();
+    final errorString = error.toString();
+    print('🔍 Processing error: $errorString');
     
-    // Network errors
-    if (errorString.contains('socketexception') || 
-        errorString.contains('network') ||
-        errorString.contains('connection') ||
-        errorString.contains('timeout')) {
-      return 'Please check your internet connection and try again';
-    }
-    
-    // Authentication errors
-    if (errorString.contains('authentication_required') ||
-        errorString.contains('unauthorized') ||
-        errorString.contains('401')) {
-      return 'Please login to continue';
-    }
-    
-    // Server errors
-    if (errorString.contains('500') || 
-        errorString.contains('server error') ||
-        errorString.contains('internal server')) {
-      return 'Our servers are temporarily unavailable. Please try again later';
-    }
-    
-    // Not found errors
-    if (errorString.contains('404') || 
-        errorString.contains('not found')) {
-      return 'The requested information is not available';
-    }
-    
-    // Permission errors
-    if (errorString.contains('permission') ||
-        errorString.contains('forbidden') ||
-        errorString.contains('403')) {
-      return 'You don\'t have permission to access this feature';
-    }
-    
-    // Location errors
-    if (errorString.contains('location') ||
-        errorString.contains('gps') ||
-        errorString.contains('coordinates')) {
-      return 'Unable to access your location. Please enable location services';
-    }
-    
-    // Image/file errors
-    if (errorString.contains('image') ||
-        errorString.contains('file') ||
-        errorString.contains('camera') ||
-        errorString.contains('gallery')) {
-      return 'Unable to process the image. Please try again';
-    }
-    
-    // Payment errors
-    if (errorString.contains('payment') ||
-        errorString.contains('razorpay') ||
-        errorString.contains('transaction')) {
-      return 'Payment processing failed. Please try again';
-    }
-    
-    // QR code errors
-    if (errorString.contains('qr') ||
-        errorString.contains('code')) {
-      return 'Unable to generate QR code. Please try again';
-    }
-    
-    // Validation errors
-    if (errorString.contains('validation') ||
-        errorString.contains('invalid') ||
-        errorString.contains('required')) {
-      return 'Please check your information and try again';
-    }
-    
-    // Default fallback
-    return 'Something went wrong. Please try again';
-  }
-  
-  /// Get empty state message based on context
-  static String getEmptyStateMessage(String context) {
-    switch (context.toLowerCase()) {
-      case 'events':
-      case 'trending':
-        return 'No trending events near your location';
-      case 'search':
-        return 'No events found matching your search';
-      case 'tickets':
-      case 'passes':
-        return 'Book Your First Ticket!';
-      case 'notifications':
-        return 'You\'re all caught up! No new notifications';
-      case 'saved':
-      case 'favorites':
-        return 'You haven\'t saved any events yet';
-      case 'categories':
-        return 'No events available in this category';
-      case 'profile':
-        return 'Unable to load profile information';
-      default:
-        return 'No items found';
+    if (errorString.startsWith('SOLD_OUT:')) {
+      return errorString.substring(9); // Remove prefix
+    } else if (errorString.startsWith('VALIDATION_ERROR:')) {
+      return errorString.substring(17); // Remove prefix
+    } else if (errorString.startsWith('BOOKING_ERROR:')) {
+      return errorString.substring(14); // Remove prefix
+    } else if (errorString.startsWith('AUTHENTICATION_REQUIRED:')) {
+      return 'Please log in to continue with your booking.';
+    } else if (errorString.startsWith('PERMISSION_DENIED:')) {
+      return 'We\'re having trouble processing your request. Please try logging in again or contact support if the issue persists.';
+    } else if (errorString.startsWith('EVENT_NOT_FOUND:')) {
+      return errorString.substring(16); // Remove prefix
+    } else if (errorString.startsWith('SERVER_ERROR:')) {
+      return errorString.substring(13); // Remove prefix
+    } else if (errorString.contains('sold out') || errorString.contains('capacity')) {
+      return 'This event is sold out or has insufficient capacity. Please try a different event or ticket type.';
+    } else if (errorString.contains('authentication') || errorString.contains('login')) {
+      return 'Your session has expired. Please log in again to continue.';
+    } else if (errorString.contains('permission') || errorString.contains('forbidden')) {
+      return 'We couldn\'t process your request. Please try logging in again or contact support.';
+    } else if (errorString.contains('network') || errorString.contains('connection')) {
+      return 'Network error. Please check your internet connection and try again.';
+    } else if (errorString.contains('timeout')) {
+      return 'Request timeout. Please try again.';
+    } else if (errorString.contains('computeEventExtras is not defined')) {
+      return 'Saved events feature is temporarily unavailable due to a server issue. Please try again later or contact support.';
+    } else if (errorString.contains('server') || errorString.contains('500')) {
+      return 'The server is temporarily unavailable. Please try again in a few minutes.';
+    } else {
+      return 'Something went wrong. Please try again.';
     }
   }
   
-  /// Show user-friendly error dialog
-  static void showErrorDialog(BuildContext context, dynamic error, {
-    String? title,
-    VoidCallback? onRetry,
-  }) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF1A1A1A),
-        title: Text(
-          title ?? 'Oops!',
-          style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        content: Text(
-          getUserFriendlyMessage(error),
-          style: const TextStyle(
-            color: Color(0xFF9CA3AF),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text(
-              'OK',
-              style: TextStyle(color: Color(0xFF9CA3AF)),
-            ),
-          ),
-          if (onRetry != null)
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-                onRetry();
-              },
-              child: const Text(
-                'Try Again',
-                style: TextStyle(color: Color(0xFF6958CA)),
-              ),
-            ),
-        ],
-      ),
-    );
+  static bool requiresReauth(String error) {
+    return error.startsWith('AUTHENTICATION_REQUIRED:') ||
+           error.contains('session expired') ||
+           error.contains('login again');
   }
   
-  /// Show user-friendly error snackbar
-  static void showErrorSnackBar(BuildContext context, dynamic error) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(getUserFriendlyMessage(error)),
-        backgroundColor: Colors.red,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
-        ),
-      ),
-    );
+  static bool isRetryable(String error) {
+    return error.startsWith('SERVER_ERROR:') ||
+           error.startsWith('BOOKING_ERROR:') ||
+           error.contains('network') ||
+           error.contains('timeout') ||
+           error.contains('temporarily unavailable');
   }
-  
-  /// Build empty state widget
+
+  // Add missing methods that the existing code expects
   static Widget buildEmptyState({
-    required String context,
-    String? customMessage,
+    String? title,
+    String? message,
+    String? context, // Context parameter for icon selection
+    String? customMessage, // Custom message parameter
+    BuildContext? navigatorContext, // Navigator context parameter
     IconData? icon,
     VoidCallback? onRetry,
-    BuildContext? navigatorContext,
+    String? retryText,
   }) {
+    // Use customMessage if provided, otherwise use message, otherwise use default
+    final displayMessage = customMessage ?? message ?? 'No data available';
+    final displayTitle = title ?? _getTitleForContext(context);
+    
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(32),
+        padding: const EdgeInsets.all(24.0),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Container(
-              width: 120,
-              height: 120,
-              decoration: BoxDecoration(
-                color: const Color(0xFF6958CA).withOpacity(0.1),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                icon ?? _getContextIcon(context),
-                color: const Color(0xFF6958CA),
-                size: 60,
-              ),
+            Icon(
+              icon ?? _getIconForContext(context),
+              size: 64,
+              color: Colors.grey[400],
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 16),
             Text(
-              customMessage ?? getEmptyStateMessage(context),
+              displayTitle,
               style: const TextStyle(
-                color: Colors.white,
                 fontSize: 18,
-                fontWeight: FontWeight.w600,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey,
               ),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
             Text(
-              _getContextSubtitle(context),
-              style: const TextStyle(
-                color: Color(0xFF9CA3AF),
+              displayMessage,
+              style: TextStyle(
                 fontSize: 14,
+                color: Colors.grey[600],
               ),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 24),
-            // Special handling for tickets context
-            if (context.toLowerCase() == 'tickets' || context.toLowerCase() == 'passes') ...[
-              ElevatedButton(
-                onPressed: () {
-                  if (navigatorContext != null) {
-                    // Navigate to main screen with home tab (index 0)
-                    Navigator.of(navigatorContext).pushNamedAndRemoveUntil(
-                      '/main',
-                      (route) => false,
-                      arguments: 0, // Home tab index
-                    );
-                  }
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF6958CA),
-                  padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                child: const Text(
-                  'Browse Events',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-              if (onRetry != null) ...[
-                const SizedBox(height: 12),
-                TextButton(
-                  onPressed: onRetry,
-                  child: const Text(
-                    'Refresh',
-                    style: TextStyle(
-                      color: Color(0xFF9CA3AF),
-                      fontSize: 14,
-                    ),
-                  ),
-                ),
-              ],
-            ] else if (onRetry != null) ...[
+            if (onRetry != null) ...[
+              const SizedBox(height: 24),
               ElevatedButton(
                 onPressed: onRetry,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF6958CA),
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-                child: const Text(
-                  'Try Again',
-                  style: TextStyle(color: Colors.white),
-                ),
+                child: Text(retryText ?? 'Try Again'),
               ),
             ],
           ],
@@ -274,48 +109,65 @@ class ErrorHandler {
       ),
     );
   }
-  
-  static IconData _getContextIcon(String context) {
-    switch (context.toLowerCase()) {
+
+  // Helper method to get appropriate title based on context
+  static String _getTitleForContext(String? context) {
+    switch (context) {
       case 'events':
-      case 'trending':
-        return Icons.event_busy;
-      case 'search':
-        return Icons.search_off;
+        return 'No Events';
       case 'tickets':
-      case 'passes':
-        return Icons.confirmation_number_outlined;
-      case 'notifications':
-        return Icons.notifications_none;
+        return 'No Tickets';
+      case 'search':
+        return 'No Results';
       case 'saved':
-      case 'favorites':
-        return Icons.bookmark_border;
-      case 'profile':
-        return Icons.person_outline;
+        return 'No Saved Events';
       default:
-        return Icons.inbox_outlined;
+        return 'No Data';
     }
   }
-  
-  static String _getContextSubtitle(String context) {
-    switch (context.toLowerCase()) {
+
+  // Helper method to get appropriate icon based on context
+  static IconData _getIconForContext(String? context) {
+    switch (context) {
       case 'events':
-      case 'trending':
-        return 'Try exploring different areas or check back later for new events';
-      case 'search':
-        return 'Try different keywords or browse all events';
+        return Icons.event_busy;
       case 'tickets':
-      case 'passes':
-        return 'Discover amazing events and book your first ticket to get started!';
-      case 'notifications':
-        return 'We\'ll notify you when something new happens';
+        return Icons.confirmation_number_outlined;
+      case 'search':
+        return Icons.search_off;
       case 'saved':
-      case 'favorites':
-        return 'Save events you\'re interested in to see them here';
-      case 'profile':
-        return 'Please check your connection and try again';
+        return Icons.bookmark_border;
       default:
-        return 'Please try again or contact support if the problem persists';
+        return Icons.error_outline;
     }
+  }
+
+  static void showErrorSnackBar(BuildContext context, dynamic error) {
+    final message = getUserFriendlyMessage(error);
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+        duration: const Duration(seconds: 4),
+        action: SnackBarAction(
+          label: 'Dismiss',
+          textColor: Colors.white,
+          onPressed: () {
+            ScaffoldMessenger.of(context).hideCurrentSnackBar();
+          },
+        ),
+      ),
+    );
+  }
+
+  static void showSuccessSnackBar(BuildContext context, String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.green,
+        duration: const Duration(seconds: 3),
+      ),
+    );
   }
 }

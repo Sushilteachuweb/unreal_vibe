@@ -13,163 +13,122 @@ class HostModeToggle extends StatelessWidget {
         final isHost = user?.isHost ?? false;
         final isHostVerified = user?.isHostVerified ?? false;
         final eventsHosted = user?.eventsHosted ?? 0;
-        final profileCompletion = user?.profileCompletion ?? 0;
         
-        if (!isHost && profileCompletion < 100) {
-          // Show subtle "Complete Profile" message for non-hosts
-          return Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: const Color(0xFF1A1A1A),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFF2A2A2A)),
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.event_outlined,
-                  color: const Color(0xFF6366F1).withOpacity(0.7),
-                  size: 18,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    'Become a Host',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF6366F1).withOpacity(0.08),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Text(
-                    '$profileCompletion%',
-                    style: TextStyle(
-                      color: const Color(0xFF6366F1).withOpacity(0.8),
-                      fontSize: 11,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          );
+        // Only show this widget if user is already a host
+        if (!isHost) {
+          return const SizedBox.shrink();
         }
         
-        // Show compact host status for hosts
         return Container(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            color: const Color(0xFF1A1A1A),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFF2A2A2A)),
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Color(0xFF10B981), Color(0xFF059669)],
+            ),
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF10B981).withOpacity(0.2),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
-                  Icon(
-                    Icons.star_outline,
-                    color: const Color(0xFF6366F1).withOpacity(0.7),
-                    size: 18,
+                  const Icon(
+                    Icons.verified,
+                    color: Colors.white,
+                    size: 24,
                   ),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: Row(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          'Host Mode',
+                        const Text(
+                          'Host Mode ACTIVE',
                           style: TextStyle(
                             color: Colors.white,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
-                        const SizedBox(width: 6),
-                        if (isHostVerified)
-                          Icon(
-                            Icons.verified,
-                            color: const Color(0xFF10B981).withOpacity(0.7),
-                            size: 14,
-                          ),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            if (isHostVerified) ...[
+                              Icon(
+                                Icons.check_circle,
+                                color: Colors.white.withOpacity(0.9),
+                                size: 16,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                'Verified Host',
+                                style: TextStyle(
+                                  color: Colors.white.withOpacity(0.9),
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ] else ...[
+                              Icon(
+                                Icons.pending,
+                                color: Colors.white.withOpacity(0.8),
+                                size: 16,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                'Verification Pending',
+                                style: TextStyle(
+                                  color: Colors.white.withOpacity(0.8),
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
                       ],
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF10B981).withOpacity(0.15),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Text(
-                      'ACTIVE',
-                      style: TextStyle(
-                        color: const Color(0xFF10B981).withOpacity(0.8),
-                        fontSize: 9,
-                        fontWeight: FontWeight.w500,
-                      ),
                     ),
                   ),
                 ],
               ),
-              
-              const SizedBox(height: 12),
-              
-              // Compact host stats
-              Row(
-                children: [
-                  Expanded(
-                    child: Row(
-                      children: [
-                        Text(
-                          '$eventsHosted',
-                          style: TextStyle(
-                            color: const Color(0xFF6366F1).withOpacity(0.8),
-                            fontSize: 15,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          'Events Hosted',
-                          style: TextStyle(
-                            color: const Color(0xFF9CA3AF).withOpacity(0.7),
-                            fontSize: 11,
-                          ),
-                        ),
-                      ],
-                    ),
+              if (eventsHosted > 0) ...[
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(10),
                   ),
-                  Row(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(
-                        isHostVerified ? Icons.verified : Icons.pending,
-                        color: isHostVerified 
-                            ? const Color(0xFF10B981).withOpacity(0.7) 
-                            : const Color(0xFFF59E0B).withOpacity(0.7),
-                        size: 14,
+                      const Icon(
+                        Icons.event,
+                        color: Colors.white,
+                        size: 16,
                       ),
-                      const SizedBox(width: 4),
+                      const SizedBox(width: 8),
                       Text(
-                        isHostVerified ? 'Verified' : 'Pending',
-                        style: TextStyle(
-                          color: isHostVerified 
-                              ? const Color(0xFF10B981).withOpacity(0.7) 
-                              : const Color(0xFFF59E0B).withOpacity(0.7),
-                          fontSize: 11,
-                          fontWeight: FontWeight.w400,
+                        '$eventsHosted ${eventsHosted == 1 ? 'Event' : 'Events'} Hosted',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ],
                   ),
-                ],
-              ),
+                ),
+              ],
             ],
           ),
         );

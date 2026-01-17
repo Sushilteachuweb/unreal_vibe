@@ -42,9 +42,37 @@ class _SavedEventsScreenState extends State<SavedEventsScreen> {
     } catch (e) {
       setState(() {
         _hasError = true;
-        _errorMessage = ErrorHandler.getUserFriendlyMessage(e);
         _isLoading = false;
       });
+      
+      // Show specific error message for server issues
+      String errorMessage = ErrorHandler.getUserFriendlyMessage(e);
+      
+      // If it's the known server bug, show a more helpful message
+      if (e.toString().contains('computeEventExtras is not defined') || 
+          e.toString().contains('server issue')) {
+        errorMessage = 'The saved events feature is temporarily experiencing server issues. Our team is working to fix this. Please try again in a few minutes.';
+        
+        // Show snackbar with retry option
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(errorMessage),
+              backgroundColor: Colors.orange,
+              duration: const Duration(seconds: 6),
+              action: SnackBarAction(
+                label: 'Retry',
+                textColor: Colors.white,
+                onPressed: () {
+                  _fetchSavedEvents();
+                },
+              ),
+            ),
+          );
+        }
+      }
+      
+      _errorMessage = errorMessage;
     }
   }
 
@@ -114,8 +142,11 @@ class _SavedEventsScreenState extends State<SavedEventsScreen> {
     if (_hasError) {
       return ErrorHandler.buildEmptyState(
         context: 'saved',
-        customMessage: _errorMessage,
+        customMessage: _errorMessage.contains('server issue') || _errorMessage.contains('computeEventExtras')
+            ? 'The saved events feature is temporarily experiencing server issues.\n\nOur team is working to fix this. Please try again in a few minutes.\n\nYour saved events are safe and will appear once the issue is resolved.'
+            : _errorMessage,
         onRetry: _fetchSavedEvents,
+        retryText: 'Try Again',
       );
     }
 
@@ -225,7 +256,7 @@ class _SavedEventsScreenState extends State<SavedEventsScreen> {
               ),
               const SizedBox(height: 8),
               Text(
-                'You haven\'t saved any events yet.\nStart exploring and save events you\'re interested in!',
+                'You haven\'t saved any events yet.\nStart exploring and save events you\'re interested in!\n\nTip: Tap the bookmark icon on any event to save it.',
                 style: TextStyle(
                   color: Colors.grey[400],
                   fontSize: 14,

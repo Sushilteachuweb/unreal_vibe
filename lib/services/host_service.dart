@@ -2,8 +2,87 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'api_routes.dart';
 import '../models/host_request_model.dart';
+import 'user_storage.dart';
 
 class HostService {
+  /// Request Host Mode - New simplified API for requesting host privileges
+  static Future<Map<String, dynamic>> requestHostMode() async {
+    print('🚀 [HostService] Starting Host Mode request...');
+    
+    try {
+      // Get authentication token
+      final token = await UserStorage.getToken();
+      if (token == null) {
+        print('❌ [HostService] No authentication token found');
+        return {
+          'success': false,
+          'message': 'Authentication required. Please login again.',
+        };
+      }
+
+      print('🔐 [HostService] Using authenticated request');
+      final headers = await ApiConfig.getAuthHeadersWithCookies(token);
+      
+      print('🌐 [HostService] Calling: ${ApiConfig.requestHostMode}');
+      
+      final response = await http.put(
+        Uri.parse(ApiConfig.requestHostMode),
+        headers: headers,
+      ).timeout(const Duration(seconds: 30));
+
+      print('📨 [HostService] Response received - Status: ${response.statusCode}');
+      print('📄 [HostService] Response body: ${response.body}');
+
+      // Parse response
+      Map<String, dynamic>? responseData;
+      try {
+        responseData = json.decode(response.body);
+        print('✅ [HostService] Successfully parsed JSON response');
+      } catch (e) {
+        print('❌ [HostService] Failed to parse JSON response: $e');
+        return {
+          'success': false,
+          'message': 'Server returned an invalid response',
+          'error': 'Failed to parse response: $e',
+        };
+      }
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        print('✅ [HostService] Host Mode request successful');
+        return {
+          'success': true,
+          'message': responseData?['message'] ?? 'Your request has been sent for admin approval.',
+          'data': responseData,
+        };
+      } else {
+        print('⚠️ [HostService] Host Mode request failed with status: ${response.statusCode}');
+        return {
+          'success': false,
+          'message': responseData?['message'] ?? 'Failed to submit host request',
+          'error': responseData?['error'],
+          'statusCode': response.statusCode,
+        };
+      }
+    } catch (e) {
+      print('💥 [HostService] Exception during Host Mode request: $e');
+      
+      String errorMessage = 'Network error occurred';
+      if (e.toString().contains('SocketException')) {
+        errorMessage = 'No internet connection. Please check your network.';
+      } else if (e.toString().contains('TimeoutException')) {
+        errorMessage = 'Request timeout. Please try again.';
+      } else if (e.toString().contains('HandshakeException')) {
+        errorMessage = 'SSL connection error. Please check your network security settings.';
+      }
+      
+      return {
+        'success': false,
+        'message': errorMessage,
+        'error': e.toString(),
+      };
+    }
+  }
+
   /// Test if the API endpoint is reachable
   static Future<Map<String, dynamic>> testApiConnection({String? authToken}) async {
     print('🔍 [HostService] Starting API connection test...');
@@ -12,7 +91,7 @@ class HostService {
       // Prepare headers with authentication
       Map<String, String> headers;
       if (authToken != null && authToken.isNotEmpty) {
-        headers = ApiConfig.getAuthHeaders(authToken);
+        headers = await ApiConfig.getAuthHeadersWithCookies(authToken);
         print('🔐 [HostService] Using authenticated headers for testing');
       } else {
         headers = {'Accept': 'application/json'};
@@ -102,7 +181,7 @@ class HostService {
     // Prepare headers with authentication
     Map<String, String> headers;
     if (authToken != null && authToken.isNotEmpty) {
-      headers = ApiConfig.getAuthHeaders(authToken);
+      headers = await ApiConfig.getAuthHeadersWithCookies(authToken);
       print('🔐 [HostService] Using authenticated headers with Bearer token');
     } else {
       headers = ApiConfig.headers;

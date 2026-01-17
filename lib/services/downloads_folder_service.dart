@@ -43,12 +43,15 @@ class DownloadsFolderService {
         _showDownloadDialog(context, eventName);
       }
 
+      // Get authentication headers with cookies
+      final authHeaders = await ApiConfig.getAuthHeadersWithCookies(token);
+      
       // Download file data
       final response = await _dio.get(
         endpoint,
         options: Options(
           headers: {
-            'Authorization': 'Bearer $token',
+            ...authHeaders,
             'Accept': 'application/pdf',
           },
           responseType: ResponseType.bytes,
@@ -91,7 +94,7 @@ class DownloadsFolderService {
         
         // Show success message
         if (context.mounted) {
-          _showSuccessSnackBar(context, fileName);
+          _showSuccessSnackBar(context, fileName, savedPath);
         }
         
         return savedPath;
@@ -124,22 +127,16 @@ class DownloadsFolderService {
       
       print('📱 Android SDK: $sdkInt');
       
-      Permission permission;
-      String permissionName;
-      
-      if (sdkInt >= 33) {
-        // Android 13+ - for Downloads folder, we actually don't need special permission
-        // Files saved via MediaStore are automatically accessible
+      // Android 10+ (API 29+) uses scoped storage with MediaStore
+      // We don't need explicit permission for saving to Downloads via MediaStore
+      if (sdkInt >= 29) {
+        print('✅ Android 10+ detected - using scoped storage (no permission needed)');
         return true;
-      } else if (sdkInt >= 30) {
-        // Android 11-12 - scoped storage, but we can still save to Downloads
-        permission = Permission.storage;
-        permissionName = 'Storage';
-      } else {
-        // Older Android - traditional storage permission
-        permission = Permission.storage;
-        permissionName = 'Storage';
       }
+      
+      // For older Android versions, we need storage permission
+      Permission permission = Permission.storage;
+      String permissionName = 'Storage';
       
       final status = await permission.status;
       print('🔐 $permissionName permission status: $status');
@@ -179,30 +176,53 @@ class DownloadsFolderService {
       
       print('📱 Saving to Downloads folder (Android SDK: $sdkInt)');
       
-      // Strategy 1: Try direct Downloads folder access (works on older Android)
-      if (sdkInt < 30) {
+      // Strategy 1: For older Android (< API 29), use direct file access
+      if (sdkInt < 29) {
         try {
           final downloadsDir = Directory('/storage/emulated/0/Download');
-          if (await downloadsDir.exists()) {
-            final file = File('${downloadsDir.path}/$fileName');
-            await file.writeAsBytes(fileBytes);
-            
-            if (await file.exists() && await file.length() > 0) {
-              print('✅ File saved to public Downloads folder');
-              return file.path;
-            }
+          if (!await downloadsDir.exists()) {
+            await downloadsDir.create(recursive: true);
+          }
+          
+          final file = File('${downloadsDir.path}/$fileName');
+          await file.writeAsBytes(fileBytes);
+          
+          if (await file.exists() && await file.length() > 0) {
+            print('✅ File saved to public Downloads folder');
+            return file.path;
           }
         } catch (e) {
           print('❌ Direct Downloads access failed: $e');
         }
       }
       
-      // Strategy 2: Use app-specific external storage with Downloads subfolder
-      // This is accessible to users via file manager
+      // Strategy 2: For Android 10+ (API 29+), try using external storage Downloads
+      // This creates a Downloads folder in app-accessible external storage
       try {
         final externalDir = await getExternalStorageDirectory();
         if (externalDir != null) {
-          // Create a Downloads subfolder that users can easily find
+          // Navigate up to the root external storage and try Downloads
+          // Path will be like: /storage/emulated/0/Android/data/com.app/files
+          // We want: /storage/emulated/0/Download
+          final pathParts = externalDir.path.split('/');
+          final rootPath = pathParts.sublist(0, 4).join('/'); // /storage/emulated/0
+          final publicDownloads = Directory('$rootPath/Download');
+          
+          if (await publicDownloads.exists()) {
+            try {
+              final file = File('${publicDownloads.path}/$fileName');
+              await file.writeAsBytes(fileBytes);
+              
+              if (await file.exists() && await file.length() > 0) {
+                print('✅ File saved to public Downloads folder');
+                return file.path;
+              }
+            } catch (e) {
+              print('⚠️ Cannot write to public Downloads (scoped storage): $e');
+            }
+          }
+          
+          // Fallback: Create Downloads subfolder in app external storage
           final downloadsDir = Directory('${externalDir.path}/Downloads');
           if (!await downloadsDir.exists()) {
             await downloadsDir.create(recursive: true);
@@ -212,21 +232,21 @@ class DownloadsFolderService {
           await file.writeAsBytes(fileBytes);
           
           if (await file.exists() && await file.length() > 0) {
-            print('✅ File saved to app Downloads folder');
+            print('✅ File saved to app external Downloads folder');
             return file.path;
           }
         }
       } catch (e) {
-        print('❌ App Downloads folder save failed: $e');
+        print('❌ External storage save failed: $e');
       }
       
-      // Strategy 3: Fallback to app documents
+      // Final fallback: app documents
       final documentsDir = await getApplicationDocumentsDirectory();
       final file = File('${documentsDir.path}/$fileName');
       await file.writeAsBytes(fileBytes);
       
       if (await file.exists() && await file.length() > 0) {
-        print('✅ File saved to app documents (fallback)');
+        print('⚠️ File saved to app documents (final fallback)');
         return file.path;
       } else {
         throw Exception('Failed to save file');
@@ -345,7 +365,22 @@ class DownloadsFolderService {
   }
 
   /// Show success snack bar
-  static void _showSuccessSnackBar(BuildContext context, String fileName) {
+  static void _showSuccessSnackBar(BuildContext context, String fileName, String filePath) {
+    // Determine where the file was saved
+    String locationMessage;
+    String detailMessage;
+    
+    if (filePath.contains('/storage/emulated/0/Download/')) {
+      locationMessage = 'Saved to Downloads folder';
+      detailMessage = 'Open Files app → Downloads to view your ticket';
+    } else if (filePath.contains('/Android/data/')) {
+      locationMessage = 'Saved to app storage';
+      detailMessage = 'Open Files app → Android → data → [app] → files → Downloads';
+    } else {
+      locationMessage = 'Saved to app storage';
+      detailMessage = 'File saved successfully';
+    }
+    
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Column(
@@ -376,13 +411,13 @@ class DownloadsFolderService {
               ),
             ),
             const SizedBox(height: 4),
-            const Row(
+            Row(
               children: [
-                Icon(Icons.folder_open, color: Color(0xFF6958CA), size: 16),
-                SizedBox(width: 4),
+                const Icon(Icons.folder, color: Color(0xFF6958CA), size: 16),
+                const SizedBox(width: 4),
                 Text(
-                  'Saved to Downloads area',
-                  style: TextStyle(
+                  locationMessage,
+                  style: const TextStyle(
                     color: Colors.white70,
                     fontSize: 13,
                     fontWeight: FontWeight.w500,
@@ -391,9 +426,9 @@ class DownloadsFolderService {
               ],
             ),
             const SizedBox(height: 4),
-            const Text(
-              'Check Downloads app or File Manager → Android → data → [app] → files → Downloads',
-              style: TextStyle(
+            Text(
+              detailMessage,
+              style: const TextStyle(
                 color: Colors.white60,
                 fontSize: 11,
               ),
@@ -401,9 +436,9 @@ class DownloadsFolderService {
           ],
         ),
         backgroundColor: const Color(0xFF4CAF50),
-        duration: const Duration(seconds: 10),
+        duration: const Duration(seconds: 8),
         action: SnackBarAction(
-          label: 'Got it',
+          label: 'Great!',
           textColor: Colors.white,
           onPressed: () {},
         ),

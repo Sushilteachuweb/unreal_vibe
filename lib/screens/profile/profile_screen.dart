@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../utils/responsive_helper.dart';
 import '../../providers/user_provider.dart';
+import '../../providers/event_provider.dart';
 import 'widgets/profile_header.dart';
 import 'widgets/host_mode_toggle.dart';
+import 'widgets/host_mode_request_card.dart';
 import 'widgets/verification_card.dart';
 import 'widgets/my_profile_card.dart';
 import 'widgets/settings_card.dart';
@@ -11,6 +13,7 @@ import 'widgets/achievements_card.dart';
 import 'widgets/additional_options_card.dart';
 import 'widgets/footer_links.dart';
 import '../../widgets/skeleton_loading.dart';
+import '../../widgets/app_bar_with_city.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({Key? key}) : super(key: key);
@@ -28,6 +31,17 @@ class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserv
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _fetchProfileIfNeeded();
+    
+    // Initialize EventProvider with user's city
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final eventProvider = context.read<EventProvider>();
+      final userProvider = context.read<UserProvider>();
+      
+      // Initialize city from user profile if available
+      if (userProvider.user?.city != null) {
+        eventProvider.initializeCityFromProfile(userProvider.user!.city);
+      }
+    });
   }
 
   @override
@@ -180,7 +194,7 @@ class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserv
     
     return Scaffold(
       backgroundColor: Colors.black,
-      appBar: _buildAppBar(),
+      appBar: const AppBarWithCity(title: 'Unrealvibe'),
       body: RefreshIndicator(
         onRefresh: _onRefresh,
         color: const Color(0xFF6366F1),
@@ -211,6 +225,8 @@ class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserv
                           const SizedBox(height: 24),
                           const HostModeToggle(),
                           const SizedBox(height: 24),
+                          const HostModeRequestCard(),
+                          const SizedBox(height: 24),
                           const VerificationCard(),
                           const SizedBox(height: 24),
                           const MyProfileCard(),
@@ -238,44 +254,4 @@ class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserv
     );
   }
 
-  PreferredSizeWidget _buildAppBar() {
-    return AppBar(
-      backgroundColor: Colors.black,
-      elevation: 0,
-      automaticallyImplyLeading: false,
-      title: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          const Text(
-            'Unrealvibes',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          Consumer<UserProvider>(
-            builder: (context, userProvider, child) {
-              final userCity = userProvider.user?.city ?? 'Noida';
-              return Row(
-                children: [
-                  const Icon(Icons.location_on, color: Colors.white, size: 16),
-                  const SizedBox(width: 4),
-                  Text(
-                    userCity,
-                    style: TextStyle(
-                      color: Colors.white.withOpacity(0.9),
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              );
-            },
-          ),
-        ],
-      ),
-    );
-  }
 }
-
