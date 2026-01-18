@@ -46,97 +46,189 @@ class DummyPhonePeService {
       context: context,
       barrierDismissible: false,
       builder: (BuildContext context) {
-        return AlertDialog(
-          title: Row(
-            children: [
-              Container(
-                width: 30,
-                height: 30,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF5F259F),
-                  borderRadius: BorderRadius.circular(6),
+        return Dialog(
+          backgroundColor: const Color(0xFF1A1A1A),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Container(
+            constraints: const BoxConstraints(
+              maxHeight: 600,
+              maxWidth: 400,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Header
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: const BoxDecoration(
+                    color: Color(0xFF5F259F),
+                    borderRadius: BorderRadius.only(
+                      topLeft: Radius.circular(16),
+                      topRight: Radius.circular(16),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 30,
+                        height: 30,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: const Center(
+                          child: Text(
+                            'P',
+                            style: TextStyle(
+                              color: Color(0xFF5F259F),
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      const Expanded(
+                        child: Text(
+                          'PhonePe Payment',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-                child: const Center(
-                  child: Text(
-                    'P',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
+                
+                // Content
+                Flexible(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Amount Display
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF2A2A2A),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Column(
+                            children: [
+                              Text(
+                                'Amount: ₹${amount.toStringAsFixed(2)}',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                description,
+                                style: const TextStyle(
+                                  color: Color(0xFF9CA3AF),
+                                  fontSize: 14,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
+                          ),
+                        ),
+                        
+                        const SizedBox(height: 24),
+                        
+                        const Text(
+                          'Choose Payment Method:',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        
+                        const SizedBox(height: 16),
+                        
+                        // Payment Methods
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            onPressed: () => _simulatePayment(context, 'UPI', true),
+                            icon: const Icon(Icons.account_balance_wallet),
+                            label: const Text('Pay with UPI'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF5F259F),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                          ),
+                        ),
+                        
+                        const SizedBox(height: 12),
+                        
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            onPressed: () => _simulatePayment(context, 'PhonePe Wallet', true),
+                            icon: const Icon(Icons.wallet),
+                            label: const Text('PhonePe Wallet'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF5F259F),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                          ),
+                        ),
+                        
+                        const SizedBox(height: 12),
+                        
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            onPressed: () => _simulatePayment(context, 'Card', true),
+                            icon: const Icon(Icons.credit_card),
+                            label: const Text('Pay with Card'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF5F259F),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                          ),
+                        ),
+                        
+                        const SizedBox(height: 20),
+                        
+                        TextButton(
+                          onPressed: () => _simulatePayment(context, 'Test', false),
+                          child: const Text(
+                            'Simulate Payment Failure',
+                            style: TextStyle(
+                              color: Colors.red,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 8),
-              const Text('PhonePe Payment'),
-            ],
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.grey[100],
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Column(
-                  children: [
-                    Text('Amount: ₹${amount.toStringAsFixed(2)}'),
-                    Text('Description: $description'),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 20),
-              const Text('Choose Payment Method:'),
-              const SizedBox(height: 10),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: () => _simulatePayment(context, 'UPI', true),
-                  icon: const Icon(Icons.account_balance_wallet),
-                  label: const Text('Pay with UPI'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF5F259F),
-                    foregroundColor: Colors.white,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 8),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: () => _simulatePayment(context, 'PhonePe Wallet', true),
-                  icon: const Icon(Icons.wallet),
-                  label: const Text('PhonePe Wallet'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF5F259F),
-                    foregroundColor: Colors.white,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 8),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: () => _simulatePayment(context, 'Card', true),
-                  icon: const Icon(Icons.credit_card),
-                  label: const Text('Pay with Card'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF5F259F),
-                    foregroundColor: Colors.white,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextButton(
-                onPressed: () => _simulatePayment(context, 'Test', false),
-                child: const Text(
-                  'Simulate Payment Failure',
-                  style: TextStyle(color: Colors.red),
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
         );
       },
@@ -182,9 +274,6 @@ class DummyPhonePePaymentSuccessResponse {
     required this.signature,
     required this.method,
   });
-
-  String get razorpayPaymentId => paymentId;
-  String get razorpaySignature => signature;
 }
 
 class DummyPhonePePaymentFailureResponse {

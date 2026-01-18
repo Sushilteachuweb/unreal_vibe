@@ -101,33 +101,7 @@ void main() {
       // Verify payment gateway is set correctly
       expect(mockRequest['payment_gateway'], equals('phonepe'));
       
-      // Verify old Razorpay field names are not used
-      expect(mockRequest.containsKey('razorpay_order_id'), isFalse);
-      expect(mockRequest.containsKey('razorpay_payment_id'), isFalse);
-      
       print('✅ PhonePe payment verification request format is correct');
-    });
-
-    test('backward compatibility with Razorpay should work', () {
-      // Test that the system still supports Razorpay for existing integrations
-      final razorpayRequest = {
-        'eventId': 'test_event',
-        'razorpay_order_id': 'order_123',
-        'razorpay_payment_id': 'pay_123',
-        'razorpay_signature': 'sig_123',
-        'payment_gateway': 'razorpay',
-        'selectedTickets': [
-          {'type': 'Male', 'quantity': 1}
-        ],
-      };
-      
-      // Verify Razorpay fields are still supported
-      expect(razorpayRequest.containsKey('razorpay_order_id'), isTrue);
-      expect(razorpayRequest.containsKey('razorpay_payment_id'), isTrue);
-      expect(razorpayRequest.containsKey('razorpay_signature'), isTrue);
-      expect(razorpayRequest['payment_gateway'], equals('razorpay'));
-      
-      print('✅ Backward compatibility with Razorpay maintained');
     });
   });
 }

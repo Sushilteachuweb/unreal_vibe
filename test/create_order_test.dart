@@ -102,8 +102,8 @@ void main() {
       // Sample payment verification data
       const eventId = '693d271e028bde4c2b458541';
       const orderId = 'order_123456789';
-      const razorpayPaymentId = 'pay_razorpay123456';
-      const razorpaySignature = 'signature_abc123';
+      const phonePePaymentId = 'pay_phonepe123456';
+      const phonePeSignature = 'signature_abc123';
       final selectedTickets = [
         {'type': 'Male', 'quantity': 1}
       ];
@@ -112,9 +112,9 @@ void main() {
         final response = await TicketService.verifyPayment(
           eventId: eventId,
           orderId: orderId,
-          paymentId: razorpayPaymentId,
-          signature: razorpaySignature,
-          paymentMethod: 'razorpay',
+          paymentId: phonePePaymentId,
+          signature: phonePeSignature,
+          paymentMethod: 'phonepe',
           selectedTickets: selectedTickets,
         );
         
@@ -126,22 +126,20 @@ void main() {
         // Check for specific error messages
         if (e.toString().contains('selectedTickets must be a non-empty array')) {
           print('ℹ️  selectedTickets issue detected - should be fixed now');
-        } else if (e.toString().contains('razorpay_order_id is required')) {
-          print('ℹ️  Field name issue detected - should be fixed now');
         }
       }
     });
 
     test('verify payment request should use correct field names', () {
       // This test verifies the request format without making actual API call
-      const expectedFields = ['eventId', 'razorpay_order_id', 'razorpayPaymentId', 'razorpaySignature'];
+      const expectedFields = ['eventId', 'phonepe_order_id', 'phonepe_payment_id', 'phonepe_signature'];
       
-      // The actual request body should contain razorpay_order_id, not orderId
+      // The actual request body should contain phonepe_order_id, not orderId
       final mockRequestBody = {
         'eventId': 'test_event',
-        'razorpay_order_id': 'order_123', // Correct field name
-        'razorpayPaymentId': 'pay_123',
-        'razorpaySignature': 'sig_123',
+        'phonepe_order_id': 'order_123', // Correct field name
+        'phonepe_payment_id': 'pay_123',
+        'phonepe_signature': 'sig_123',
       };
       
       for (String field in expectedFields) {

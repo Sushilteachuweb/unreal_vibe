@@ -47,7 +47,7 @@ void main() {
           eventId: '693d271e028bde4c2b458541',
           orderId: 'order_123',
           paymentId: 'pay_123',
-          paymentMethod: 'razorpay',
+          paymentMethod: 'phonepe',
         );
         
         // Should not reach here without authentication

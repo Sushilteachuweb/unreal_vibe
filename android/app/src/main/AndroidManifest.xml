@@ -41,11 +41,6 @@
         android:name="android.permission.READ_MEDIA_VIDEO"/>
     <uses-permission
         android:name="android.permission.READ_MEDIA_AUDIO"/>
-    <!-- Razorpay SMS permissions temporarily removed to avoid Play Protect issues -->
-    <!-- Will be added back when needed for production payments -->
-    <!-- <uses-permission android:name="android.permission.READ_SMS"/> -->
-    <!-- <uses-permission android:name="android.permission.RECEIVE_SMS"/> -->
-    <!-- <uses-permission android:name="android.permission.READ_PHONE_STATE"/> -->
     <uses-feature
         android:name="android.hardware.camera"
         android:required="false"/>
@@ -80,15 +75,6 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
-        <!-- Razorpay Receiver -->
-        <receiver
-            android:name="com.razorpay.RzpTokenReceiver"
-            android:exported="false">
-            <intent-filter>
-                <action
-                    android:name="rzp.device_token.share"/>
-            </intent-filter>
-        </receiver>
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data

@@ -41,7 +41,6 @@ dependencies:
   http: ^1.2.0
   http_parser: ^4.0.2
   image_picker: ^1.0.7
-  razorpay_flutter: ^1.4.0
   crypto: ^3.0.3
   video_player: ^2.7.2
   qr_flutter: ^4.1.0
